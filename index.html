@@ -331,20 +331,11 @@
       </label>
     </div>
     <div class="sub-panel hidden" id="prestamistaPanel">
-      <div class="row2">
-        <div class="field" style="margin-top:0;">
-          <label>Taxa do seguro (% a.m.)</label>
-          <input type="number" id="prestamistaTaxa" step="0.001" value="0.05">
-        </div>
-        <div class="field" style="margin-top:0;">
-          <label>Base de cálculo</label>
-          <select id="prestamistaBase">
-            <option value="BRUTO">Valor bruto × prazo</option>
-            <option value="MEDIO">Saldo devedor médio</option>
-          </select>
-        </div>
+      <div class="field" style="margin-top:0;">
+        <label>Data de nascimento do associado</label>
+        <input type="date" id="prestamistaNascimento">
       </div>
-      <p class="hint">Confirme a taxa contratada com a seguradora parceira — valor acima é apenas um ponto de partida.</p>
+      <p class="hint" id="prestamistaFaixaHint">Informe a data de nascimento — a taxa é definida automaticamente pela faixa etária na data de liberação.</p>
     </div>
   </section>
 
@@ -496,61 +487,6 @@
   const fmtBRL = v => (isFinite(v)?v:0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const fmtPct = v => (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 
-  // ---------- deductions ----------
-  function calcDeducoes(bruto, prazoTotal){
-    const iofFixoPct = parseFloat($('iofFixo').value)/100;
-    const iofDiarioPct = parseFloat($('iofDiario').value)/100;
-    const dias = Math.min(prazoTotal*30, 365);
-    const iof = bruto*iofFixoPct + bruto*iofDiarioPct*dias;
-
-    const tarifaAtiva = $('tarifaAtiva').checked;
-    const tarifa = tarifaAtiva ? Math.min(bruto*0.01, 4000) : 0;
-
-    let comissao = 0;
-    const comissaoAtiva = $('comissaoAtiva').checked;
-    if(comissaoAtiva){
-      if(fundo==='FAMPE'){
-        comissao = 0.001*prazoTotal*(bruto*0.8);
-      } else {
-        const fatorK = getFatorK(prazoTotal);
-        comissao = 0.48*fatorK*bruto*prazoTotal;
-      }
-    }
-
-    let prestamista = 0;
-    const prestamistaAtiva = $('prestamistaAtiva').checked;
-    if(prestamistaAtiva){
-      const taxa = parseFloat($('prestamistaTaxa').value)/100;
-      const base = $('prestamistaBase').value;
-      if(base==='BRUTO'){
-        prestamista = bruto*taxa*prazoTotal;
-      } else {
-        // aproximação: saldo médio ~ bruto/2 ao longo do prazo (SAC-like)
-        prestamista = (bruto/2)*taxa*prazoTotal;
-      }
-    }
-
-    return {iof,tarifa,comissao,prestamista, total: iof+tarifa+comissao+prestamista, tarifaAtiva, comissaoAtiva, prestamistaAtiva};
-  }
-
-  function liquidoDe(bruto, prazoTotal){
-    const d = calcDeducoes(bruto, prazoTotal);
-    return {liquido: bruto - d.total, ded: d};
-  }
-
-  // resolve bruto a partir do líquido desejado (bissecção — a função é monotônica crescente)
-  function brutoDeLiquido(liquidoAlvo, prazoTotal){
-    let lo = liquidoAlvo, hi = liquidoAlvo*1.6;
-    while(liquidoDe(hi, prazoTotal).liquido < liquidoAlvo && hi < liquidoAlvo*10){ hi *= 1.5; }
-    for(let i=0;i<80;i++){
-      const mid = (lo+hi)/2;
-      const res = liquidoDe(mid, prazoTotal).liquido;
-      if(Math.abs(res-liquidoAlvo) < 0.005) { lo=hi=mid; break; }
-      if(res < liquidoAlvo) lo = mid; else hi = mid;
-    }
-    return (lo+hi)/2;
-  }
-
   // ---------- datas ----------
   function addMonths(date, n){
     const d = new Date(date.getTime());
@@ -567,8 +503,34 @@
     const [y,m,dd] = v.split('-').map(Number);
     return new Date(y, m-1, dd);
   }
+  function parseDataNascimento(){
+    const v = $('prestamistaNascimento').value;
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
   function fmtData(d){
     return d.toLocaleDateString('pt-BR');
+  }
+  function calcIdade(nascimento, referencia){
+    let idade = referencia.getFullYear() - nascimento.getFullYear();
+    const aniversarioEsteAno = new Date(referencia.getFullYear(), nascimento.getMonth(), nascimento.getDate());
+    if(referencia < aniversarioEsteAno) idade--;
+    return idade;
+  }
+
+  // ---------- seguro prestamista: tabela oficial por faixa etária (Tabela8) ----------
+  // Fonte: simulador.xlsm, aba "PRESTAMISTA SAC" (Tabela8) — taxa mensal aplicada sobre
+  // o valor total das parcelas, pró-rata pelos dias corridos da operação (pagamento único).
+  const FAIXAS_PRESTAMISTA = [
+    {min:18, max:65, taxa:0.0522/100},
+    {min:66, max:70, taxa:0.10885/100},
+    {min:71, max:75, taxa:0.20972/100},
+    {min:76, max:80, taxa:0.37769/100},
+  ];
+  function taxaPrestamistaPorIdade(idade){
+    for(const f of FAIXAS_PRESTAMISTA){ if(idade>=f.min && idade<=f.max) return f.taxa; }
+    return null; // fora de faixa (menor de 18 ou maior de 80): seguro não disponível
   }
 
   // ---------- amortization schedule ----------
@@ -613,6 +575,69 @@
     return linhas;
   }
 
+  // ---------- deductions ----------
+  function calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+    const iofFixoPct = parseFloat($('iofFixo').value)/100;
+    const iofDiarioPct = parseFloat($('iofDiario').value)/100;
+    const dias = Math.min(prazoTotal*30, 365);
+    const iof = bruto*iofFixoPct + bruto*iofDiarioPct*dias;
+
+    const tarifaAtiva = $('tarifaAtiva').checked;
+    const tarifa = tarifaAtiva ? Math.min(bruto*0.01, 4000) : 0;
+
+    let comissao = 0;
+    const comissaoAtiva = $('comissaoAtiva').checked;
+    if(comissaoAtiva){
+      if(fundo==='FAMPE'){
+        comissao = 0.001*prazoTotal*(bruto*0.8);
+      } else {
+        const fatorK = getFatorK(prazoTotal);
+        comissao = 0.48*fatorK*bruto*prazoTotal;
+      }
+    }
+
+    let prestamista = 0;
+    let prestamistaInfo = null;
+    const prestamistaAtiva = $('prestamistaAtiva').checked;
+    if(prestamistaAtiva){
+      const nascimento = parseDataNascimento();
+      if(nascimento){
+        const idade = calcIdade(nascimento, dataLiberacao);
+        const taxaIdade = taxaPrestamistaPorIdade(idade);
+        if(taxaIdade!=null){
+          const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao);
+          const valorOperacao = linhasTmp.reduce((s,l)=>s+l.parcela, 0);
+          const ultimaData = linhasTmp[linhasTmp.length-1].data;
+          const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
+          prestamista = (taxaIdade/30) * diasOperacao * valorOperacao;
+          prestamistaInfo = {idade, taxaIdade, ok:true};
+        } else {
+          prestamistaInfo = {idade, taxaIdade:null, ok:false};
+        }
+      }
+    }
+
+    return {iof,tarifa,comissao,prestamista, total: iof+tarifa+comissao+prestamista, tarifaAtiva, comissaoAtiva, prestamistaAtiva, prestamistaInfo};
+  }
+
+  function liquidoDe(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+    const d = calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao);
+    return {liquido: bruto - d.total, ded: d};
+  }
+
+  // resolve bruto a partir do líquido desejado (bissecção — a função é monotônica crescente)
+  function brutoDeLiquido(liquidoAlvo, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+    let lo = liquidoAlvo, hi = liquidoAlvo*1.6;
+    while(liquidoDe(hi, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao).liquido < liquidoAlvo && hi < liquidoAlvo*10){ hi *= 1.5; }
+    for(let i=0;i<80;i++){
+      const mid = (lo+hi)/2;
+      const res = liquidoDe(mid, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao).liquido;
+      if(Math.abs(res-liquidoAlvo) < 0.005) { lo=hi=mid; break; }
+      if(res < liquidoAlvo) lo = mid; else hi = mid;
+    }
+    return (lo+hi)/2;
+  }
+
   // CET aproximado via Newton-Raphson (IRR mensal)
   function calcCET(valorLiberado, linhas){
     const fluxos = linhas.map(l=>l.parcela);
@@ -647,19 +672,20 @@
     prazo = Math.min(120, Math.max(1,prazo));
     carencia = Math.max(0, Math.min(carencia, prazo-1));
 
+    const dataLiberacao = parseDataLiberacao();
+
     let bruto, ded, liquido;
     if(tipoValor==='BRUTO'){
       bruto = valorInformado;
-      const r = liquidoDe(bruto, prazo);
+      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao);
       ded = r.ded; liquido = r.liquido;
     } else {
       liquido = valorInformado;
-      bruto = brutoDeLiquido(liquido, prazo);
-      const r = liquidoDe(bruto, prazo);
+      bruto = brutoDeLiquido(liquido, prazo, carencia, taxaMensal, sistema, dataLiberacao);
+      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao);
       ded = r.ded; liquido = r.liquido;
     }
 
-    const dataLiberacao = parseDataLiberacao();
     const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema, dataLiberacao);
     const cetMensal = calcCET(liquido, linhas);
     const cetAnual = Math.pow(1+cetMensal,12)-1;
@@ -679,11 +705,22 @@
     $('outCET').textContent = fmtPct(r.cetMensal) + ' / ' + fmtPct(r.cetAnual);
 
     const d = r.ded;
+    const pInfo = d.prestamistaInfo;
+    let prestamistaLabel = 'Seguro prestamista';
+    if(d.prestamistaAtiva){
+      if(pInfo && pInfo.ok){
+        prestamistaLabel += ` (${pInfo.idade} anos · ${fmtPct(pInfo.taxaIdade)} a.m.)`;
+      } else if(pInfo && !pInfo.ok){
+        prestamistaLabel += ' (fora da faixa etária permitida: 18 a 80 anos)';
+      } else {
+        prestamistaLabel += ' (informe a data de nascimento)';
+      }
+    }
     const rows = [
       {label:'IOF (PJ)', val: d.iof, active:true},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:'Comissão '+fundo, val: d.comissao, active:d.comissaoAtiva},
-      {label:'Seguro prestamista', val: d.prestamista, active:d.prestamistaAtiva},
+      {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
     ];
     let html = '';
     rows.forEach(row=>{
