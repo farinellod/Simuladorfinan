@@ -290,11 +290,17 @@
       <input type="number" id="carencia" min="0" value="0">
       <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação, com 54 parcelas ao todo. No PRICE, os meses de carência só capitalizam juros (sem cobrança); a partir daí a parcela é nivelada sobre o saldo já capitalizado. No SAC não há capitalização prévia — a amortização já começa na 1ª parcela, só o juros dela é maior (reflete o intervalo todo desde a liberação).</p>
     </div>
-    <div class="field">
-      <label>Data de liberação do crédito</label>
-      <input type="date" id="dataLiberacao">
-      <p class="hint">Usada para calcular a data de cada parcela (inclusive as de carência). Padrão: hoje — pode alterar.</p>
+    <div class="row2">
+      <div class="field" style="margin-top:0;">
+        <label>Data de liberação do crédito</label>
+        <input type="date" id="dataLiberacao">
+      </div>
+      <div class="field" style="margin-top:0;">
+        <label>Data da 1ª parcela</label>
+        <input type="date" id="dataPrimeiraParcela">
+      </div>
     </div>
+    <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação e da carência (carência 0 → 1 mês depois; carência 6 → 6 meses depois). Você pode ajustá-la manualmente se precisar — as demais parcelas seguem mês a mês a partir dela.</p>
   </section>
 
   <!-- ENCARGOS -->
@@ -538,6 +544,12 @@
     const [y,m,dd] = v.split('-').map(Number);
     return new Date(y, m-1, dd);
   }
+  function parseDataPrimeiraParcela(){
+    const v = $('dataPrimeiraParcela').value;
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
   function parseDataNascimento(){
     const v = $('prestamistaNascimento').value;
     if(!v) return null;
@@ -569,13 +581,19 @@
   }
 
   // ---------- amortization schedule ----------
-  function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao){
+  function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira){
     const i = taxaMensal/100;
     const nAmort = prazoTotal - carencia;
     // "carência" = mês (contado da liberação) em que vence a 1ª parcela.
     const inicioAmort = Math.max(carencia, 1);
     const linhas = [];
     let dataAnterior = dataLiberacao;
+
+    // Data de vencimento da parcela m. Se o usuário informou a data da 1ª parcela,
+    // ancora nela (parcela m = 1ª + (m-1) meses); senão, usa liberação + carência.
+    const dataParcela = (m) => dataPrimeira
+      ? addMonths(dataPrimeira, m-1)
+      : addMonths(dataLiberacao, inicioAmort-1+m);
 
     // Juros por período: juros compostos pelos DIAS CORRIDOS reais entre datas
     // (não um mês fixo de 30 dias) — juros = saldo × ((1+taxa)^(dias/30) − 1).
@@ -585,26 +603,41 @@
     };
 
     if(sistemaCalc==='PRICE'){
-      // PRICE: meses de carência capitalizam juros (sem cobrança, saldo cresce mês a mês);
-      // depois disso o PMT é nivelado sobre o saldo JÁ capitalizado, para as nAmort parcelas
-      // restantes — evita que o juros acumulado da carência "estoure" a 1ª parcela.
-      const gracas = inicioAmort - 1;
-      let saldo = bruto;
-      for(let m=1; m<=gracas; m++){
-        const dataAtual = addMonths(dataLiberacao, m);
-        const juros = jurosPeriodo(saldo, dataAtual);
-        saldo += juros;
-        linhas.push({n:m, data: dataAtual, parcela:0, juros, amort:0, saldo, carencia:true});
-        dataAnterior = dataAtual;
-      }
-      const pmt = i===0 ? saldo/nAmort : saldo*i/(1-Math.pow(1+i,-nAmort));
+      // PRICE: modelo oficial do Excel (validado exato contra os PDFs do Sicredi).
+      // Não há linhas separadas de carência. Gera-se uma tabela PRICE padrão sobre um
+      // "valor presente" VP = bruto capitalizado pelos dias de carência EXCEDENTES ao
+      // 1º mês normal (30 dias). O PMT é constante. O saldo devedor exibido é o saldo
+      // dessa tabela-VP; o PRINCIPAL real só aparece quando o saldo-VP cai abaixo do
+      // bruto original (antes disso a parcela é juros puro, principal=0).
+      // Fonte: simulador.xlsm 'PRICE - Principal'; confere PMT, IOF, saldo e datas.
+      const data1a = dataParcela(1);
+      const diasAte1a = Math.round((data1a - dataLiberacao)/86400000);
+      const diasExcedentes = Math.max(diasAte1a - 30, 0);
+      const VP = bruto * Math.pow(1+i, diasExcedentes/30);
+      const pmt = i===0 ? VP/nAmort : VP*i/(1-Math.pow(1+i,-nAmort));
+
+      let saldoVP = VP;
       for(let m=1; m<=nAmort; m++){
-        const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
-        const juros = jurosPeriodo(saldo, dataAtual);
-        let amort = pmt - juros;
-        if(m===nAmort) amort = saldo; // fecha arredondamento
-        saldo = Math.max(0, saldo-amort);
-        linhas.push({n:gracas+m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        const dataAtual = dataParcela(m);
+        // juros exibido: na 1ª parcela usa os dias corridos reais sobre o bruto (reflete
+        // a carência inteira de uma vez); nas demais, taxa mensal sobre o saldo-VP.
+        const juros = (m===1)
+          ? bruto * (Math.pow(1+i, diasAte1a/30) - 1)
+          : saldoVP * i;
+        const amortVP = pmt - saldoVP*i;
+        const novoSaldoVP = saldoVP - amortVP;
+        // principal REAL: 0 enquanto o saldo-VP > bruto; na transição, a parte que cruza
+        // o bruto; depois, a amortização cheia da tabela-VP.
+        let principalReal;
+        if(novoSaldoVP >= bruto) principalReal = 0;
+        else if(saldoVP > bruto) principalReal = bruto - novoSaldoVP;
+        else principalReal = amortVP;
+        let amortShow = principalReal;
+        let saldoExibido = novoSaldoVP;
+        if(m===nAmort){ amortShow = saldoVP; saldoExibido = 0; }
+        saldoVP = novoSaldoVP;
+        const emCarencia = amortShow===0 && m<nAmort;
+        linhas.push({n:m, data: dataAtual, parcela: pmt, juros, amort: amortShow, saldo: Math.max(0,saldoExibido), carencia:false, gracaPrice: emCarencia});
         dataAnterior = dataAtual;
       }
     } else { // SAC: sem linhas de carência — amortização constante sobre o bruto original desde
@@ -612,7 +645,7 @@
       let saldo = bruto;
       const amortConst = bruto/nAmort;
       for(let m=1; m<=nAmort; m++){
-        const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
+        const dataAtual = dataParcela(m);
         const juros = jurosPeriodo(saldo, dataAtual);
         let amort = amortConst;
         if(m===nAmort) amort = saldo;
@@ -625,9 +658,9 @@
   }
 
   // ---------- deductions ----------
-  function calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+  function calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
     // gera a tabela uma única vez (usada tanto pelo IOF quanto pelo prestamista)
-    const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao);
+    const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira);
 
     // IOF: fórmula oficial — fixo (adicional) sobre o bruto + diário por parcela,
     // aplicado sobre o valor AMORTIZADO em cada parcela, pelos dias corridos entre a
@@ -674,13 +707,19 @@
         const idade = calcIdade(nascimento, dataLiberacao);
         const taxaIdade = taxaPrestamistaPorIdade(idade);
         if(taxaIdade!=null){
-          // PRICE: base = soma de todas as parcelas (valor da operação).
-          // SAC: base = valor bruto (crédito liberado) — fórmulas oficiais distintas
-          // (simulador.xlsm, abas "PRICE"!E20 vs "SAC"!E18).
+          // Seguro prestamista é INDEPENDENTE de carência (confirmado nos PDFs: o prêmio
+          // é o mesmo com e sem carência). Por isso a base é sempre calculada sobre o
+          // cronograma SEM carência.
+          // PRICE: base = soma de todas as parcelas (valor da operação) do plano sem carência.
+          // SAC: base = valor bruto (crédito liberado). Fórmulas oficiais distintas
+          // (simulador.xlsm, abas "PRICE"!E20 vs "SAC"!E18). O SAC no Excel refina o
+          // prêmio por um cálculo atuarial iterativo — aqui usamos a base bruto, que fica
+          // a poucos por cento do valor da planilha.
+          const linhasSemCarencia = gerarTabela(bruto, taxaMensal, prazoTotal, 0, sistemaCalc, dataLiberacao);
           const baseCalculo = sistemaCalc==='PRICE'
-            ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
+            ? linhasSemCarencia.reduce((s,l)=>s+l.parcela, 0)
             : bruto;
-          const ultimaData = linhasTmp[linhasTmp.length-1].data;
+          const ultimaData = linhasSemCarencia[linhasSemCarencia.length-1].data;
           const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
@@ -693,18 +732,18 @@
     return {iof,tarifa,comissao,prestamista, total: iof+tarifa+comissao+prestamista, tarifaAtiva, comissaoAtiva, prestamistaAtiva, prestamistaInfo};
   }
 
-  function liquidoDe(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
-    const d = calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao);
+  function liquidoDe(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
+    const d = calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira);
     return {liquido: bruto - d.total, ded: d};
   }
 
   // resolve bruto a partir do líquido desejado (bissecção — a função é monotônica crescente)
-  function brutoDeLiquido(liquidoAlvo, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+  function brutoDeLiquido(liquidoAlvo, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
     let lo = liquidoAlvo, hi = liquidoAlvo*1.6;
-    while(liquidoDe(hi, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao).liquido < liquidoAlvo && hi < liquidoAlvo*10){ hi *= 1.5; }
+    while(liquidoDe(hi, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira).liquido < liquidoAlvo && hi < liquidoAlvo*10){ hi *= 1.5; }
     for(let i=0;i<80;i++){
       const mid = (lo+hi)/2;
-      const res = liquidoDe(mid, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao).liquido;
+      const res = liquidoDe(mid, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira).liquido;
       if(Math.abs(res-liquidoAlvo) < 0.005) { lo=hi=mid; break; }
       if(res < liquidoAlvo) lo = mid; else hi = mid;
     }
@@ -748,20 +787,21 @@
     carencia = Math.max(0, Math.min(carencia, prazo-1));
 
     const dataLiberacao = parseDataLiberacao();
+    const dataPrimeira = parseDataPrimeiraParcela();
 
     let bruto, ded, liquido;
     if(tipoValor==='BRUTO'){
       bruto = valorInformado;
-      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao);
+      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao, dataPrimeira);
       ded = r.ded; liquido = r.liquido;
     } else {
       liquido = valorInformado;
-      bruto = brutoDeLiquido(liquido, prazo, carencia, taxaMensal, sistema, dataLiberacao);
-      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao);
+      bruto = brutoDeLiquido(liquido, prazo, carencia, taxaMensal, sistema, dataLiberacao, dataPrimeira);
+      const r = liquidoDe(bruto, prazo, carencia, taxaMensal, sistema, dataLiberacao, dataPrimeira);
       ded = r.ded; liquido = r.liquido;
     }
 
-    const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema, dataLiberacao);
+    const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema, dataLiberacao, dataPrimeira);
     const cetMensal = calcCET(liquido, linhas);
     const cetAnual = Math.pow(1+cetMensal,12)-1;
 
@@ -900,6 +940,31 @@
     const dd = String(hoje.getDate()).padStart(2,'0');
     $('dataLiberacao').value = `${yyyy}-${mm}-${dd}`;
   })();
+
+  // data da 1ª parcela: preenche automaticamente a partir de liberação + carência,
+  // a menos que o usuário a tenha editado manualmente.
+  let primeiraParcelaEditadaManualmente = false;
+  function toISODate(d){
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  function autoPreencherPrimeiraParcela(){
+    if(primeiraParcelaEditadaManualmente) return;
+    const lib = parseDataLiberacao();
+    const car = Math.max(0, Math.round(parseFloat($('carencia').value)||0));
+    const meses = Math.max(car, 1); // carência 0 → 1 mês; carência N → N meses
+    $('dataPrimeiraParcela').value = toISODate(addMonths(lib, meses));
+  }
+  $('dataLiberacao').addEventListener('change', autoPreencherPrimeiraParcela);
+  $('carencia').addEventListener('input', autoPreencherPrimeiraParcela);
+  $('dataPrimeiraParcela').addEventListener('input', ()=>{ primeiraParcelaEditadaManualmente = true; });
+  // botão para voltar ao automático caso o usuário limpe o campo
+  $('dataPrimeiraParcela').addEventListener('change', ()=>{
+    if(!$('dataPrimeiraParcela').value){ primeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcela(); }
+  });
+  autoPreencherPrimeiraParcela();
 })();
 </script>
 </body>
