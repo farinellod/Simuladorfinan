@@ -203,7 +203,7 @@
   #printSheet{display:none;}
 
   @media print{
-    @page{ size:A4 landscape; margin:8mm; }
+    @page{ size:A4 portrait; margin:8mm; }
     body{background:#fff !important;color:#0b1220 !important;padding:0;}
     header.top, .wrap > section.card, #btnCalcular, details.adv, .foot-note, #results{display:none !important;}
     #printSheet{
@@ -211,15 +211,15 @@
     }
     #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
     #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 10px;}
-    #printSheet .p-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}
+    #printSheet .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
     #printSheet .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
     #printSheet .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
     #printSheet .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
     #printSheet .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
     #printSheet .p-ded span.lbl{color:#556;}
-    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:7.5px;}
-    #printSheet table th{text-align:right;padding:1.5px 3px;border-bottom:1px solid #0b1220;font-size:7px;text-transform:uppercase;}
-    #printSheet table td{text-align:right;padding:1px 3px;border-bottom:1px solid #dde;}
+    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:7px;}
+    #printSheet table th{text-align:right;padding:1.5px 2px;border-bottom:1px solid #0b1220;font-size:6.5px;text-transform:uppercase;}
+    #printSheet table td{text-align:right;padding:1px 2px;border-bottom:1px solid #dde;}
     #printSheet table th:first-child, #printSheet table td:first-child,
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
@@ -653,10 +653,15 @@
         const idade = calcIdade(nascimento, dataLiberacao);
         const taxaIdade = taxaPrestamistaPorIdade(idade);
         if(taxaIdade!=null){
-          const valorOperacao = linhasTmp.reduce((s,l)=>s+l.parcela, 0);
+          // PRICE: base = soma de todas as parcelas (valor da operação).
+          // SAC: base = valor bruto (crédito liberado) — fórmulas oficiais distintas
+          // (simulador.xlsm, abas "PRICE"!E20 vs "SAC"!E18).
+          const baseCalculo = sistemaCalc==='PRICE'
+            ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
+            : bruto;
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
           const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
-          prestamista = (taxaIdade/30) * diasOperacao * valorOperacao;
+          prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
         } else {
           prestamistaInfo = {idade, taxaIdade:null, ok:false};
@@ -807,8 +812,8 @@
     $('pDedList').innerHTML = dedHtml;
 
     const total = r.linhas.length;
-    const porColuna = 38; // linhas por coluna, calibrado para caber em 1 folha A4 paisagem
-    const nCols = Math.min(4, Math.max(1, Math.ceil(total/porColuna)));
+    const porColuna = 45; // linhas por coluna, calibrado para caber em 1 folha A4 retrato (até 120 parcelas)
+    const nCols = Math.min(3, Math.max(1, Math.ceil(total/porColuna)));
     const porColunaReal = Math.ceil(total/nCols);
     let colsHtml = '';
     for(let c=0; c<nCols; c++){
