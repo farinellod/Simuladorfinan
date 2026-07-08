@@ -195,6 +195,36 @@
 
   ::-webkit-scrollbar{width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--navy-600);border-radius:4px;}
+
+  .btn-row{display:flex;gap:8px;margin-top:10px;}
+  .btn-row .btn-ghost{margin-top:0;}
+
+  #printSheet{display:none;}
+
+  @media print{
+    @page{ size:A4 landscape; margin:8mm; }
+    body{background:#fff !important;color:#0b1220 !important;padding:0;}
+    header.top, .wrap > section.card, #btnCalcular, details.adv, .foot-note, #results{display:none !important;}
+    #printSheet{
+      display:block !important;color:#0b1220;font-family:var(--sans);
+    }
+    #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
+    #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 10px;}
+    #printSheet .p-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}
+    #printSheet .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
+    #printSheet .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
+    #printSheet .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
+    #printSheet .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
+    #printSheet .p-ded span.lbl{color:#556;}
+    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:8px;}
+    #printSheet table th{text-align:right;padding:2px 4px;border-bottom:1px solid #0b1220;font-size:7.5px;text-transform:uppercase;}
+    #printSheet table td{text-align:right;padding:1.5px 4px;border-bottom:1px solid #dde;}
+    #printSheet table th:first-child, #printSheet table td:first-child,
+    #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
+    #printSheet table tr.carencia td{color:#a86a00;}
+    #printSheet .p-cols{column-count:2;column-gap:14px;}
+    #printSheet .p-cols table{break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
@@ -240,7 +270,12 @@
     <div class="field">
       <label>Carência (meses — descontada do prazo total)</label>
       <input type="number" id="carencia" min="0" value="0">
-      <p class="hint">Ex.: prazo 48 + carência 6 → 6 meses só de juros (capitalizados) + 42 parcelas amortizando.</p>
+      <p class="hint">Ex.: prazo 48 + carência 6 → 6 meses só de juros (capitalizados) + 42 parcelas amortizando. As datas de cada parcela são contadas a partir da liberação do crédito.</p>
+    </div>
+    <div class="field">
+      <label>Data de liberação do crédito</label>
+      <input type="date" id="dataLiberacao">
+      <p class="hint">Usada para calcular a data de cada parcela (inclusive as de carência). Padrão: hoje — pode alterar.</p>
     </div>
   </section>
 
@@ -345,17 +380,40 @@
     </div>
 
     <div class="card">
-      <p class="card-title">Tabela de amortização <button class="btn-ghost" style="width:auto;margin:0;padding:6px 12px;font-size:11.5px;" id="btnCopiarResumo">Copiar resumo</button></p>
+      <p class="card-title">Tabela de amortização</p>
       <div class="table-scroll">
         <table class="amort" id="tabelaAmort">
           <thead>
-            <tr><th>#</th><th>Parcela</th><th>Juros</th><th>Amortização</th><th>Saldo</th></tr>
+            <tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amortização</th><th>Saldo</th></tr>
           </thead>
           <tbody id="tabelaAmortBody"></tbody>
         </table>
       </div>
+      <div class="btn-row">
+        <button class="btn-ghost" id="btnCopiarResumo">Copiar resumo</button>
+        <button class="btn-ghost" id="btnImprimir">Imprimir simulação</button>
+      </div>
     </div>
   </section>
+
+  <!-- FOLHA DE IMPRESSÃO (somente aparece no print) -->
+  <div id="printSheet">
+    <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
+    <p class="p-sub" id="pSub"></p>
+    <div class="p-kpis">
+      <div class="p-kpi"><div class="pk-label">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
+      <div class="p-kpi"><div class="pk-label">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
+      <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
+      <div class="p-kpi"><div class="pk-label">CET aprox. (a.m. / a.a.)</div><div class="pk-value" id="pCET">—</div></div>
+    </div>
+    <div class="p-ded" id="pDedList"></div>
+    <div class="p-cols">
+      <table id="pTabela">
+        <thead><tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amortização</th><th>Saldo</th></tr></thead>
+        <tbody id="pTabelaBody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <details class="adv">
     <summary>Parâmetros avançados (IOF)</summary>
@@ -493,8 +551,28 @@
     return (lo+hi)/2;
   }
 
+  // ---------- datas ----------
+  function addMonths(date, n){
+    const d = new Date(date.getTime());
+    const dia = d.getDate();
+    d.setDate(1); // evita "estouro" de mês em dias 29/30/31
+    d.setMonth(d.getMonth()+n);
+    const ultimoDiaMesDestino = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(dia, ultimoDiaMesDestino));
+    return d;
+  }
+  function parseDataLiberacao(){
+    const v = $('dataLiberacao').value;
+    if(!v) return new Date();
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+  function fmtData(d){
+    return d.toLocaleDateString('pt-BR');
+  }
+
   // ---------- amortization schedule ----------
-  function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc){
+  function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao){
     const i = taxaMensal/100;
     const nAmort = prazoTotal - carencia;
     const linhas = [];
@@ -504,7 +582,7 @@
     for(let m=1; m<=carencia; m++){
       const juros = saldo*i;
       saldo += juros;
-      linhas.push({n:m, parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
+      linhas.push({n:m, data: addMonths(dataLiberacao, m), parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
     }
 
     if(sistemaCalc==='PRICE'){
@@ -514,7 +592,7 @@
         let amort = pmt - juros;
         if(m===nAmort) amort = saldo; // fecha arredondamento
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:carencia+m, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:carencia+m, data: addMonths(dataLiberacao, carencia+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
       }
     } else { // SAC
       const amortConst = saldo/nAmort;
@@ -523,7 +601,7 @@
         let amort = amortConst;
         if(m===nAmort) amort = saldo;
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:carencia+m, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:carencia+m, data: addMonths(dataLiberacao, carencia+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
       }
     }
     return linhas;
@@ -575,11 +653,12 @@
       ded = r.ded; liquido = r.liquido;
     }
 
-    const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema);
+    const dataLiberacao = parseDataLiberacao();
+    const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema, dataLiberacao);
     const cetMensal = calcCET(liquido, linhas);
     const cetAnual = Math.pow(1+cetMensal,12)-1;
 
-    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema};
+    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao};
     render(lastResult);
     $('results').style.display = 'block';
     $('results').scrollIntoView({behavior:'smooth', block:'start'});
@@ -611,6 +690,7 @@
     r.linhas.forEach(l=>{
       tbody += `<tr class="${l.carencia?'carencia':''}">
         <td>${l.n}</td>
+        <td>${fmtData(l.data)}</td>
         <td>${l.carencia? '—' : fmtBRL(l.parcela)}</td>
         <td>${fmtBRL(l.juros)}</td>
         <td>${l.carencia? '—' : fmtBRL(l.amort)}</td>
@@ -618,6 +698,23 @@
       </tr>`;
     });
     $('tabelaAmortBody').innerHTML = tbody;
+
+    // ---- folha de impressão ----
+    $('pSistema').textContent = r.sistema;
+    $('pSub').textContent = `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`;
+    $('pBruto').textContent = fmtBRL(r.bruto);
+    $('pLiquido').textContent = fmtBRL(r.liquido);
+    $('pParcela1').textContent = primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—';
+    $('pCET').textContent = fmtPct(r.cetMensal) + ' / ' + fmtPct(r.cetAnual);
+
+    let dedHtml = '';
+    rows.forEach(row=>{
+      dedHtml += `<span><span class="lbl">${row.label}${row.active?'':' (inativo)'}:</span> ${fmtBRL(row.val)}</span>`;
+    });
+    dedHtml += `<span><span class="lbl">Total de encargos:</span> ${fmtBRL(d.total)}</span>`;
+    $('pDedList').innerHTML = dedHtml;
+
+    $('pTabelaBody').innerHTML = tbody;
   }
 
   $('btnCopiarResumo').addEventListener('click', ()=>{
@@ -643,11 +740,25 @@
     });
   });
 
+  $('btnImprimir').addEventListener('click', ()=>{
+    if(!lastResult){ $('btnCalcular').click(); }
+    if(lastResult) window.print();
+  });
+
   // atualiza teto de carência dinamicamente
   $('prazo').addEventListener('input', ()=>{
     let p = Math.round(parseFloat($('prazo').value)||1);
     if(p>120){ $('prazo').value = 120; }
   });
+
+  // data de liberação: padrão hoje
+  (function initDataLiberacao(){
+    const hoje = new Date();
+    const yyyy = hoje.getFullYear();
+    const mm = String(hoje.getMonth()+1).padStart(2,'0');
+    const dd = String(hoje.getDate()).padStart(2,'0');
+    $('dataLiberacao').value = `${yyyy}-${mm}-${dd}`;
+  })();
 })();
 </script>
 </body>
