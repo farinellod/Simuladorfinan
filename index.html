@@ -580,31 +580,48 @@
     const gracas = inicioAmort - 1;
     const linhas = [];
     let saldo = bruto;
+    let dataAnterior = dataLiberacao;
+
+    // Juros por período: juros compostos pelos DIAS CORRIDOS reais entre datas
+    // (não um mês fixo de 30 dias) — juros = saldo × ((1+taxa)^(dias/30) − 1).
+    // Fonte: simulador.xlsm, 'PRICE - Principal' (col. G) e 'SAC - Calculo' (col. F).
+    const jurosPeriodo = (saldoBase, dataAtual) => {
+      const dias = Math.round((dataAtual - dataAnterior)/86400000);
+      return saldoBase * (Math.pow(1+i, dias/30) - 1);
+    };
 
     // meses de carência: capitaliza juros, sem pagamento
     for(let m=1; m<=gracas; m++){
-      const juros = saldo*i;
+      const dataAtual = addMonths(dataLiberacao, m);
+      const juros = jurosPeriodo(saldo, dataAtual);
       saldo += juros;
-      linhas.push({n:m, data: addMonths(dataLiberacao, m), parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
+      linhas.push({n:m, data: dataAtual, parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
+      dataAnterior = dataAtual;
     }
 
     if(sistemaCalc==='PRICE'){
+      // PMT nominal (nível), calculado pela taxa mensal padrão — os juros de cada
+      // parcela individual usam os dias corridos reais; a última parcela fecha o saldo.
       const pmt = i===0 ? saldo/nAmort : saldo*i/(1-Math.pow(1+i,-nAmort));
       for(let m=1; m<=nAmort; m++){
-        const juros = saldo*i;
+        const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
+        const juros = jurosPeriodo(saldo, dataAtual);
         let amort = pmt - juros;
         if(m===nAmort) amort = saldo; // fecha arredondamento
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:gracas+m, data: addMonths(dataLiberacao, inicioAmort-1+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:gracas+m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        dataAnterior = dataAtual;
       }
     } else { // SAC
       const amortConst = saldo/nAmort;
       for(let m=1; m<=nAmort; m++){
-        const juros = saldo*i;
+        const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
+        const juros = jurosPeriodo(saldo, dataAtual);
         let amort = amortConst;
         if(m===nAmort) amort = saldo;
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:gracas+m, data: addMonths(dataLiberacao, inicioAmort-1+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:gracas+m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        dataAnterior = dataAtual;
       }
     }
     return linhas;
@@ -812,7 +829,7 @@
     $('pDedList').innerHTML = dedHtml;
 
     const total = r.linhas.length;
-    const porColuna = 45; // linhas por coluna, calibrado para caber em 1 folha A4 retrato (até 120 parcelas)
+    const porColuna = 70; // linhas por coluna, calibrado para usar a folha A4 retrato até embaixo (até 120 parcelas em 2 colunas)
     const nCols = Math.min(3, Math.max(1, Math.ceil(total/porColuna)));
     const porColunaReal = Math.ceil(total/nCols);
     let colsHtml = '';
