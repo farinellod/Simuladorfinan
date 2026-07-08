@@ -127,6 +127,7 @@
     margin-top:8px;padding-top:8px;
   }
   .sub-panel.hidden{display:none;}
+  .hidden{display:none !important;}
 
   .btn-primary{
     width:100%;background:var(--teal);color:#04231f;border:none;
@@ -216,14 +217,14 @@
     #printSheet .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
     #printSheet .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
     #printSheet .p-ded span.lbl{color:#556;}
-    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:8px;}
-    #printSheet table th{text-align:right;padding:2px 4px;border-bottom:1px solid #0b1220;font-size:7.5px;text-transform:uppercase;}
-    #printSheet table td{text-align:right;padding:1.5px 4px;border-bottom:1px solid #dde;}
+    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:7.5px;}
+    #printSheet table th{text-align:right;padding:1.5px 3px;border-bottom:1px solid #0b1220;font-size:7px;text-transform:uppercase;}
+    #printSheet table td{text-align:right;padding:1px 3px;border-bottom:1px solid #dde;}
     #printSheet table th:first-child, #printSheet table td:first-child,
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
-    #printSheet .p-cols{column-count:2;column-gap:14px;}
-    #printSheet .p-cols table{break-inside:avoid;}
+    #printSheet .p-cols{display:flex;gap:10px;align-items:flex-start;}
+    #printSheet .p-cols table{flex:1 1 0;break-inside:avoid;}
   }
 </style>
 </head>
@@ -249,7 +250,7 @@
 
     <div class="field">
       <label>Valor da simulação (R$)</label>
-      <input type="number" id="valorSimulacao" inputmode="decimal" placeholder="0,00" value="50000">
+      <input type="text" id="valorSimulacao" inputmode="decimal" placeholder="0,00" value="50.000,00">
     </div>
     <div class="seg" id="seg-tipoValor" style="margin-top:8px;">
       <button data-val="BRUTO" class="active">É valor BRUTO</button>
@@ -257,7 +258,7 @@
     </div>
     <p class="hint" id="tipoValorHint">Valor bruto = valor financiado / valor do contrato.</p>
 
-    <div class="row2" style="margin-top:14px;">
+    <div class="row2" style="margin-top:14px;" id="row-taxa-price">
       <div class="field" style="margin-top:0;">
         <label>Taxa de juros (% a.m.)</label>
         <input type="number" id="taxaMensal" step="0.01" value="1.99">
@@ -265,6 +266,23 @@
       <div class="field" style="margin-top:0;">
         <label>Prazo total (meses, máx. 120)</label>
         <input type="number" id="prazo" max="120" min="1" value="48">
+      </div>
+    </div>
+    <div class="hidden" id="row-taxa-sac">
+      <div class="row2" style="margin-top:14px;">
+        <div class="field" style="margin-top:0;">
+          <label>Taxa pré (% a.m.)</label>
+          <input type="number" id="taxaPre" step="0.01" value="1.99">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Taxa pós / indexador (% a.m.)</label>
+          <input type="number" id="taxaPos" step="0.01" value="0">
+        </div>
+      </div>
+      <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
+      <div class="field">
+        <label>Prazo total (meses, máx. 120)</label>
+        <input type="number" id="prazoSac" max="120" min="1" value="48">
       </div>
     </div>
     <div class="field">
@@ -398,12 +416,7 @@
       <div class="p-kpi"><div class="pk-label">CET aprox. (a.m. / a.a.)</div><div class="pk-value" id="pCET">—</div></div>
     </div>
     <div class="p-ded" id="pDedList"></div>
-    <div class="p-cols">
-      <table id="pTabela">
-        <thead><tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amortização</th><th>Saldo</th></tr></thead>
-        <tbody id="pTabelaBody"></tbody>
-      </table>
-    </div>
+    <div class="p-cols" id="pCols"></div>
   </div>
 
   <details class="adv">
@@ -419,7 +432,7 @@
           <input type="number" id="iofDiario" step="0.0001" value="0.0082">
         </div>
       </div>
-      <p class="hint">Padrão de mercado vigente para PJ (0,38% + 0,0082% a.d., teto 365 dias). As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
+      <p class="hint">Padrão de mercado vigente para PJ (0,38% fixo sobre o bruto + 0,0082% a.d.). O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
     </div>
   </details>
 
@@ -459,7 +472,11 @@
       });
     });
   }
-  bindSeg('seg-sistema', v=>sistema=v);
+  bindSeg('seg-sistema', v=>{
+    sistema=v;
+    $('row-taxa-price').classList.toggle('hidden', v==='SAC');
+    $('row-taxa-sac').classList.toggle('hidden', v!=='SAC');
+  });
   bindSeg('seg-tipoValor', v=>{
     tipoValor=v;
     $('tipoValorHint').textContent = v==='BRUTO'
@@ -486,6 +503,24 @@
   // ---------- formatting ----------
   const fmtBRL = v => (isFinite(v)?v:0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const fmtPct = v => (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+
+  // ---------- máscara de moeda (campo Valor da simulação) ----------
+  function parseMoeda(el){
+    const digits = el.value.replace(/\D/g,'');
+    return digits ? parseInt(digits,10)/100 : 0;
+  }
+  function aplicarMascaraMoeda(el){
+    const format = ()=>{
+      const digits = el.value.replace(/\D/g,'');
+      if(!digits){ el.value=''; return; }
+      const num = parseInt(digits,10)/100;
+      el.value = num.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    };
+    el.addEventListener('input', format);
+    el.addEventListener('blur', format);
+    format();
+  }
+  aplicarMascaraMoeda($('valorSimulacao'));
 
   // ---------- datas ----------
   function addMonths(date, n){
@@ -577,10 +612,23 @@
 
   // ---------- deductions ----------
   function calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao){
+    // gera a tabela uma única vez (usada tanto pelo IOF quanto pelo prestamista)
+    const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao);
+
+    // IOF: fórmula oficial — fixo (adicional) sobre o bruto + diário por parcela,
+    // aplicado sobre o valor AMORTIZADO em cada parcela, pelos dias corridos entre a
+    // liberação e o vencimento daquela parcela (teto de 365 dias por parcela).
+    // Fonte: simulador.xlsm, aba "PRICE - Calculo" (colunas B/D/E).
     const iofFixoPct = parseFloat($('iofFixo').value)/100;
     const iofDiarioPct = parseFloat($('iofDiario').value)/100;
-    const dias = Math.min(prazoTotal*30, 365);
-    const iof = bruto*iofFixoPct + bruto*iofDiarioPct*dias;
+    const iofFixo = bruto*iofFixoPct;
+    let iofDiario = 0;
+    linhasTmp.forEach(l=>{
+      const dias = Math.round((l.data - dataLiberacao)/86400000);
+      const diasCap = Math.min(dias, 365);
+      iofDiario += l.amort * diasCap * iofDiarioPct;
+    });
+    const iof = iofFixo + iofDiario;
 
     const tarifaAtiva = $('tarifaAtiva').checked;
     const tarifa = tarifaAtiva ? Math.min(bruto*0.01, 4000) : 0;
@@ -605,7 +653,6 @@
         const idade = calcIdade(nascimento, dataLiberacao);
         const taxaIdade = taxaPrestamistaPorIdade(idade);
         if(taxaIdade!=null){
-          const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao);
           const valorOperacao = linhasTmp.reduce((s,l)=>s+l.parcela, 0);
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
           const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
@@ -664,9 +711,11 @@
   let lastResult = null;
 
   $('btnCalcular').addEventListener('click', ()=>{
-    const valorInformado = parseFloat($('valorSimulacao').value)||0;
-    const taxaMensal = parseFloat($('taxaMensal').value)||0;
-    let prazo = Math.round(parseFloat($('prazo').value)||1);
+    const valorInformado = parseMoeda($('valorSimulacao'));
+    const taxaMensal = sistema==='SAC'
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
+    let prazo = Math.round(parseFloat((sistema==='SAC' ? $('prazoSac') : $('prazo')).value)||1);
     let carencia = Math.round(parseFloat($('carencia').value)||0);
 
     prazo = Math.min(120, Math.max(1,prazo));
@@ -757,7 +806,28 @@
     dedHtml += `<span><span class="lbl">Total de encargos:</span> ${fmtBRL(d.total)}</span>`;
     $('pDedList').innerHTML = dedHtml;
 
-    $('pTabelaBody').innerHTML = tbody;
+    const total = r.linhas.length;
+    const porColuna = 38; // linhas por coluna, calibrado para caber em 1 folha A4 paisagem
+    const nCols = Math.min(4, Math.max(1, Math.ceil(total/porColuna)));
+    const porColunaReal = Math.ceil(total/nCols);
+    let colsHtml = '';
+    for(let c=0; c<nCols; c++){
+      const fatia = r.linhas.slice(c*porColunaReal, (c+1)*porColunaReal);
+      if(!fatia.length) continue;
+      let corpo = '';
+      fatia.forEach(l=>{
+        corpo += `<tr class="${l.carencia?'carencia':''}">
+          <td>${l.n}</td>
+          <td>${fmtData(l.data)}</td>
+          <td>${l.carencia? '—' : fmtBRL(l.parcela)}</td>
+          <td>${fmtBRL(l.juros)}</td>
+          <td>${l.carencia? '—' : fmtBRL(l.amort)}</td>
+          <td>${fmtBRL(l.saldo)}</td>
+        </tr>`;
+      });
+      colsHtml += `<table><thead><tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amort.</th><th>Saldo</th></tr></thead><tbody>${corpo}</tbody></table>`;
+    }
+    $('pCols').innerHTML = colsHtml;
   }
 
   $('btnCopiarResumo').addEventListener('click', ()=>{
@@ -789,9 +859,11 @@
   });
 
   // atualiza teto de carência dinamicamente
-  $('prazo').addEventListener('input', ()=>{
-    let p = Math.round(parseFloat($('prazo').value)||1);
-    if(p>120){ $('prazo').value = 120; }
+  ['prazo','prazoSac'].forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      let p = Math.round(parseFloat($(id).value)||1);
+      if(p>120){ $(id).value = 120; }
+    });
   });
 
   // data de liberação: padrão hoje
