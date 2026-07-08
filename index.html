@@ -268,9 +268,9 @@
       </div>
     </div>
     <div class="field">
-      <label>Carência (meses — descontada do prazo total)</label>
+      <label>Carência (meses até o vencimento da 1ª parcela)</label>
       <input type="number" id="carencia" min="0" value="0">
-      <p class="hint">Ex.: prazo 48 + carência 6 → 6 meses só de juros (capitalizados) + 42 parcelas amortizando. As datas de cada parcela são contadas a partir da liberação do crédito.</p>
+      <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação (5 meses só de juros capitalizados + 1ª parcela já amortizando no mês 6), com 54 parcelas ao todo.</p>
     </div>
     <div class="field">
       <label>Data de liberação do crédito</label>
@@ -575,11 +575,17 @@
   function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao){
     const i = taxaMensal/100;
     const nAmort = prazoTotal - carencia;
+    // Convenção bancária: "carência" = mês (contado da liberação) em que vence a 1ª parcela.
+    // Ex.: liberação + 6 meses de carência → 1ª parcela vence exatamente 6 meses depois.
+    // Isso significa: (carencia-1) meses só de capitalização de juros (sem cobrança),
+    // e a 1ª parcela (já com amortização) cai no mês "carencia".
+    const inicioAmort = Math.max(carencia, 1);
+    const gracas = inicioAmort - 1;
     const linhas = [];
     let saldo = bruto;
 
-    // carência: capitaliza juros, sem pagamento
-    for(let m=1; m<=carencia; m++){
+    // meses de carência: capitaliza juros, sem pagamento
+    for(let m=1; m<=gracas; m++){
       const juros = saldo*i;
       saldo += juros;
       linhas.push({n:m, data: addMonths(dataLiberacao, m), parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
@@ -592,7 +598,7 @@
         let amort = pmt - juros;
         if(m===nAmort) amort = saldo; // fecha arredondamento
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:carencia+m, data: addMonths(dataLiberacao, carencia+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:gracas+m, data: addMonths(dataLiberacao, inicioAmort-1+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
       }
     } else { // SAC
       const amortConst = saldo/nAmort;
@@ -601,7 +607,7 @@
         let amort = amortConst;
         if(m===nAmort) amort = saldo;
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:carencia+m, data: addMonths(dataLiberacao, carencia+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:gracas+m, data: addMonths(dataLiberacao, inicioAmort-1+m), parcela: amort+juros, juros, amort, saldo, carencia:false});
       }
     }
     return linhas;
