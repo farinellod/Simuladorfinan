@@ -288,7 +288,7 @@
     <div class="field">
       <label>Carência (meses até o vencimento da 1ª parcela)</label>
       <input type="number" id="carencia" min="0" value="0">
-      <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação (5 meses só de juros capitalizados + 1ª parcela já amortizando no mês 6), com 54 parcelas ao todo.</p>
+      <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação, com 54 parcelas ao todo. No PRICE, o juros acumulado no período de carência entra na 1ª parcela e, se superar o valor dela, a diferença é arrastada (sem amortizar) até quitar — igual ao Sicredi. No SAC a amortização já começa na 1ª parcela, só o juros fica maior.</p>
     </div>
     <div class="field">
       <label>Data de liberação do crédito</label>
@@ -573,54 +573,63 @@
     const i = taxaMensal/100;
     const nAmort = prazoTotal - carencia;
     // Convenção bancária: "carência" = mês (contado da liberação) em que vence a 1ª parcela.
-    // Ex.: liberação + 6 meses de carência → 1ª parcela vence exatamente 6 meses depois.
-    // Isso significa: (carencia-1) meses só de capitalização de juros (sem cobrança),
-    // e a 1ª parcela (já com amortização) cai no mês "carencia".
+    // O Excel NÃO cria linhas "fantasmas" de carência: há só nAmort parcelas reais, e a
+    // 1ª parcela já nasce com juros calculados sobre o intervalo TOTAL desde a liberação
+    // (podendo ser vários meses de uma vez). Fonte: simulador.xlsm, 'PRICE - Principal'
+    // (col. G, usa dias corridos totais) e 'SAC - Calculo' (col. F, idêntico para SAC).
     const inicioAmort = Math.max(carencia, 1);
-    const gracas = inicioAmort - 1;
     const linhas = [];
     let saldo = bruto;
     let dataAnterior = dataLiberacao;
 
     // Juros por período: juros compostos pelos DIAS CORRIDOS reais entre datas
     // (não um mês fixo de 30 dias) — juros = saldo × ((1+taxa)^(dias/30) − 1).
-    // Fonte: simulador.xlsm, 'PRICE - Principal' (col. G) e 'SAC - Calculo' (col. F).
     const jurosPeriodo = (saldoBase, dataAtual) => {
       const dias = Math.round((dataAtual - dataAnterior)/86400000);
       return saldoBase * (Math.pow(1+i, dias/30) - 1);
     };
 
-    // meses de carência: capitaliza juros, sem pagamento
-    for(let m=1; m<=gracas; m++){
-      const dataAtual = addMonths(dataLiberacao, m);
-      const juros = jurosPeriodo(saldo, dataAtual);
-      saldo += juros;
-      linhas.push({n:m, data: dataAtual, parcela:0, juros:juros, amort:0, saldo:saldo, carencia:true});
-      dataAnterior = dataAtual;
-    }
-
     if(sistemaCalc==='PRICE'){
-      // PMT nominal (nível), calculado pela taxa mensal padrão — os juros de cada
-      // parcela individual usam os dias corridos reais; a última parcela fecha o saldo.
-      const pmt = i===0 ? saldo/nAmort : saldo*i/(1-Math.pow(1+i,-nAmort));
+      // PMT nominal (constante) é calibrado sobre um "capital ajustado": o bruto capitalizado
+      // apenas pelos dias de carência EXCEDENTES ao 1º mês normal (30 dias). Isso garante que,
+      // quando não há carência (1ª parcela ~30 dias depois), o PMT bate com o cálculo padrão.
+      // Fonte: PRICE!E14 (PV = -F6*(1+H7)), com H7 = (1+taxa)^(dias_excedentes/30) − 1.
+      const data1a = addMonths(dataLiberacao, inicioAmort);
+      const diasAte1a = Math.round((data1a - dataLiberacao)/86400000);
+      const diasExcedentes = Math.max(diasAte1a - 30, 0);
+      const capitalAjustado = bruto * Math.pow(1+i, diasExcedentes/30);
+      const pmt = i===0 ? capitalAjustado/nAmort : capitalAjustado*i/(1-Math.pow(1+i,-nAmort));
+
+      // Quando os juros de um período (incluindo o que ficou pendente do anterior) superam
+      // o valor nominal da parcela, a amortização daquele mês fica zerada e a diferença é
+      // arrastada ("juros pendente") para os próximos meses — até quitar e a amortização
+      // voltar a aparecer normalmente. É assim que o Excel modela a carência longa no PRICE.
+      let pendente = 0;
       for(let m=1; m<=nAmort; m++){
         const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
-        const juros = jurosPeriodo(saldo, dataAtual);
+        const jurosBase = jurosPeriodo(saldo, dataAtual);
+        const juros = jurosBase + pendente;
         let amort = pmt - juros;
-        if(m===nAmort) amort = saldo; // fecha arredondamento
-        saldo = Math.max(0, saldo-amort);
-        linhas.push({n:gracas+m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        let pendenteNovo;
+        let parcelaPaga = pmt;
+        if(amort < 0){ pendenteNovo = -amort; amort = 0; }
+        else { pendenteNovo = 0; }
+        if(m===nAmort){ amort = saldo; parcelaPaga = amort + juros; pendenteNovo = 0; } // fecha arredondamento
+        saldo = saldo - amort + pendenteNovo;
+        pendente = pendenteNovo;
+        linhas.push({n:m, data: dataAtual, parcela: parcelaPaga, juros, amort, saldo, carencia:false});
         dataAnterior = dataAtual;
       }
-    } else { // SAC
-      const amortConst = saldo/nAmort;
+    } else { // SAC: amortização constante sobre o bruto original, sem ajuste de capital nem
+      // pendência — a parcela simplesmente varia (fica maior) no(s) período(s) de carência.
+      const amortConst = bruto/nAmort;
       for(let m=1; m<=nAmort; m++){
         const dataAtual = addMonths(dataLiberacao, inicioAmort-1+m);
         const juros = jurosPeriodo(saldo, dataAtual);
         let amort = amortConst;
         if(m===nAmort) amort = saldo;
         saldo = Math.max(0, saldo-amort);
-        linhas.push({n:gracas+m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
+        linhas.push({n:m, data: dataAtual, parcela: amort+juros, juros, amort, saldo, carencia:false});
         dataAnterior = dataAtual;
       }
     }
