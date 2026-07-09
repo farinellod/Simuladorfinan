@@ -226,6 +226,7 @@
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
     #printSheet .p-cols table{flex:1 1 0;break-inside:avoid;}
+    #printSheet .p-cols table:not(:first-child){border-left:1px solid #b9c2d4;padding-left:10px;}
   }
 
   /* Renderização para o PDF baixado (fora do @media print, capturado por html2canvas) */
@@ -252,6 +253,7 @@
   #printSheet.print-render table th:nth-child(2), #printSheet.print-render table td:nth-child(2){text-align:left;}
   #printSheet.print-render table tr.carencia td{color:#a86a00;}
   #printSheet.print-render .p-cols table{flex:1 1 0;}
+  #printSheet.print-render .p-cols table:not(:first-child){border-left:1px solid #b9c2d4;padding-left:10px;}
 </style>
 </head>
 <body>
