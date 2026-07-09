@@ -203,29 +203,55 @@
   #printSheet{display:none;}
 
   @media print{
-    @page{ size:A4 portrait; margin:8mm; }
+    @page{ size:A4 portrait; margin:7mm; }
     body{background:#fff !important;color:#0b1220 !important;padding:0;}
     header.top, .wrap > section.card, #btnCalcular, details.adv, .foot-note, #results{display:none !important;}
     #printSheet{
-      display:block !important;color:#0b1220;font-family:var(--sans);
+      display:flex !important;flex-direction:column;height:283mm;overflow:hidden;
+      color:#0b1220;font-family:var(--sans);
     }
     #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
-    #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 10px;}
+    #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
     #printSheet .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
     #printSheet .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
     #printSheet .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
     #printSheet .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
     #printSheet .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
     #printSheet .p-ded span.lbl{color:#556;}
-    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:7px;}
-    #printSheet table th{text-align:right;padding:1.5px 2px;border-bottom:1px solid #0b1220;font-size:6.5px;text-transform:uppercase;}
-    #printSheet table td{text-align:right;padding:1px 2px;border-bottom:1px solid #dde;}
+    #printSheet .p-cols{display:flex;gap:10px;align-items:flex-start;flex:1 1 auto;min-height:0;}
+    #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
+    #printSheet table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
+    #printSheet table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
     #printSheet table th:first-child, #printSheet table td:first-child,
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
-    #printSheet .p-cols{display:flex;gap:10px;align-items:flex-start;}
     #printSheet .p-cols table{flex:1 1 0;break-inside:avoid;}
   }
+
+  /* Renderização para o PDF baixado (fora do @media print, capturado por html2canvas) */
+  #printSheet.print-render{
+    display:flex !important;flex-direction:column;
+    position:fixed;left:-9999px;top:0;
+    width:196mm;min-height:283mm;
+    background:#fff;color:#0b1220;font-family:var(--sans);
+    padding:0;z-index:-1;
+  }
+  #printSheet.print-render .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
+  #printSheet.print-render .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
+  #printSheet.print-render .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
+  #printSheet.print-render .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
+  #printSheet.print-render .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
+  #printSheet.print-render .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
+  #printSheet.print-render .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
+  #printSheet.print-render .p-ded span.lbl{color:#556;}
+  #printSheet.print-render .p-cols{display:flex;gap:10px;align-items:flex-start;flex:1 1 auto;min-height:0;}
+  #printSheet.print-render table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
+  #printSheet.print-render table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
+  #printSheet.print-render table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
+  #printSheet.print-render table th:first-child, #printSheet.print-render table td:first-child,
+  #printSheet.print-render table th:nth-child(2), #printSheet.print-render table td:nth-child(2){text-align:left;}
+  #printSheet.print-render table tr.carencia td{color:#a86a00;}
+  #printSheet.print-render .p-cols table{flex:1 1 0;}
 </style>
 </head>
 <body>
@@ -340,6 +366,7 @@
       <div class="seg" id="seg-fundo">
         <button data-val="FGI" class="active">FGI</button>
         <button data-val="FAMPE">FAMPE</button>
+        <button data-val="FAMPE_MULHER">FAMPE Mulher</button>
       </div>
       <p class="hint" id="fundoHint"></p>
     </div>
@@ -407,6 +434,7 @@
       <div class="btn-row">
         <button class="btn-ghost" id="btnCopiarResumo">Copiar resumo</button>
         <button class="btn-ghost" id="btnImprimir">Imprimir simulação</button>
+        <button class="btn-ghost" id="btnBaixar">Baixar simulação (PDF)</button>
       </div>
     </div>
   </section>
@@ -445,6 +473,8 @@
   <p class="foot-note">Ferramenta de apoio à simulação. Os valores finais de contrato seguem sempre o sistema oficial do banco.</p>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -492,9 +522,12 @@
   bindSeg('seg-fundo', v=>{ fundo=v; updateFundoHint(); });
 
   function updateFundoHint(){
-    $('fundoHint').textContent = fundo==='FAMPE'
-      ? 'CCA = 0,10% × prazo (meses) × 80% do valor financiado.'
-      : 'ECG = 48% × Fator K (pela tabela vigente ≥2022) × valor financiado × prazo (meses).';
+    const hints = {
+      FAMPE: 'CCA = 0,10% × prazo (meses) × 80% do valor financiado.',
+      FAMPE_MULHER: 'CCA (Mulher) = 0,10% × prazo (meses) × 100% do valor financiado.',
+      FGI: 'ECG = 48% × Fator K (pela tabela vigente ≥2022) × valor financiado × prazo (meses).'
+    };
+    $('fundoHint').textContent = hints[fundo] || hints.FGI;
   }
   updateFundoHint();
 
@@ -691,6 +724,10 @@
       if(fundo==='FAMPE'){
         const prazoOp = Math.ceil(diasOperacao/30); // ROUNDUP
         comissao = 0.001*prazoOp*(bruto*0.8);
+      } else if(fundo==='FAMPE_MULHER'){
+        // FAMPE Mulher: 0,1% × prazo × 100% do valor (base cheia, sem o fator 80%)
+        const prazoOp = Math.ceil(diasOperacao/30); // ROUNDUP (mesma contagem do FAMPE)
+        comissao = 0.001*prazoOp*bruto;
       } else { // FGI
         const prazoOp = Math.floor(diasOperacao/30); // ROUNDDOWN
         const fatorK = getFatorK(prazoOp);
@@ -805,7 +842,7 @@
     const cetMensal = calcCET(liquido, linhas);
     const cetAnual = Math.pow(1+cetMensal,12)-1;
 
-    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao};
+    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao, valorInformado, tipoValor, seguroAtivo: ded.prestamistaAtiva};
     render(lastResult);
     $('results').style.display = 'block';
     $('results').scrollIntoView({behavior:'smooth', block:'start'});
@@ -834,7 +871,7 @@
     const rows = [
       {label:'IOF (PJ)', val: d.iof, active:true},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
-      {label:'Comissão '+fundo, val: d.comissao, active:d.comissaoAtiva},
+      {label:'Comissão '+(fundo==='FAMPE_MULHER'?'FAMPE Mulher':fundo), val: d.comissao, active:d.comissaoAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
     ];
     let html = '';
@@ -873,12 +910,27 @@
     $('pDedList').innerHTML = dedHtml;
 
     const total = r.linhas.length;
-    const porColuna = 70; // linhas por coluna, calibrado para usar a folha A4 retrato até embaixo (até 120 parcelas em 2 colunas)
-    const nCols = Math.min(3, Math.max(1, Math.ceil(total/porColuna)));
-    const porColunaReal = Math.ceil(total/nCols);
+    // 1 coluna quando cabe folgado; 2 colunas para tabelas maiores. Nunca mais de 2
+    // (mantém legível). O tamanho da fonte é calculado para preencher a altura da folha.
+    const nCols = total <= 56 ? 1 : 2;
+    const linhasPorColuna = Math.ceil(total/nCols);
+
+    // Altura útil da tabela: ~283mm menos cabeçalho/KPIs/encargos (~78mm) → ~205mm.
+    // Cada linha ocupa aprox. (fonte * 1.12 + 2*padding). Resolve a fonte que preenche.
+    const alturaDisponivelMM = 205;
+    const alturaDisponivelPX = alturaDisponivelMM * 3.78; // ~3.78px por mm a 96dpi
+    // altura por linha ≈ fs*1.12 (line-height) + 2*pad; com pad ≈ fs*0.25
+    // → alturaLinha ≈ fs*1.62. Queremos linhasPorColuna*alturaLinha ≈ alturaDisponivel
+    let fs = alturaDisponivelPX / (linhasPorColuna * 1.62);
+    fs = Math.max(5.5, Math.min(11, fs)); // limites de legibilidade
+    const pad = Math.max(0.5, fs*0.22);
+    const sheet = $('printSheet');
+    sheet.style.setProperty('--print-fs', fs.toFixed(2)+'px');
+    sheet.style.setProperty('--print-pad', pad.toFixed(2)+'px');
+
     let colsHtml = '';
     for(let c=0; c<nCols; c++){
-      const fatia = r.linhas.slice(c*porColunaReal, (c+1)*porColunaReal);
+      const fatia = r.linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
       if(!fatia.length) continue;
       let corpo = '';
       fatia.forEach(l=>{
@@ -922,6 +974,61 @@
   $('btnImprimir').addEventListener('click', ()=>{
     if(!lastResult){ $('btnCalcular').click(); }
     if(lastResult) window.print();
+  });
+
+  // monta o nome do arquivo: valor-prazo-seguro-carencia
+  function nomeArquivoPDF(){
+    const r = lastResult;
+    // valor: usa o valor informado (bruto ou líquido) sem centavos, em milhares quando redondo
+    const valor = Math.round(r.valorInformado || r.bruto);
+    const valorStr = valor.toLocaleString('pt-BR').replace(/\./g,'');
+    const prazoStr = r.prazo + 'meses';
+    const seguroStr = r.seguroAtivo ? 'comseguro' : 'semseguro';
+    const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
+    return `${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+  }
+
+  $('btnBaixar').addEventListener('click', async ()=>{
+    if(!lastResult){ $('btnCalcular').click(); }
+    if(!lastResult) return;
+    // se as bibliotecas de PDF não carregaram (ex.: sem internet), usa a impressão nativa
+    if(typeof html2canvas==='undefined' || !window.jspdf){
+      alert('Para baixar o PDF é preciso conexão com a internet. Vou abrir a impressão — escolha "Salvar como PDF".');
+      window.print();
+      return;
+    }
+    const btn = $('btnBaixar');
+    const orig = btn.textContent;
+    btn.textContent = 'Gerando PDF...';
+    btn.disabled = true;
+    try{
+      const sheet = $('printSheet');
+      // aplica o layout de impressão temporariamente (fora do @media print)
+      sheet.classList.add('print-render');
+      // pequena espera para o navegador aplicar o estilo antes da captura
+      await new Promise(res=>setTimeout(res, 60));
+      const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: sheet.scrollWidth});
+      sheet.classList.remove('print-render');
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+      const pageW = 210, pageH = 297, margin = 7;
+      const usableW = pageW - margin*2;
+      const usableH = pageH - margin*2;
+      // escala a imagem para caber na largura útil; se exceder a altura, reduz para caber (1 página)
+      let imgW = usableW;
+      let imgH = canvas.height * (imgW/canvas.width);
+      if(imgH > usableH){ imgH = usableH; imgW = canvas.width * (imgH/canvas.height); }
+      const x = (pageW - imgW)/2;
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, margin, imgW, imgH);
+      pdf.save(nomeArquivoPDF());
+    }catch(e){
+      $('printSheet').classList.remove('print-render');
+      alert('Não foi possível gerar o PDF automaticamente. Use "Imprimir simulação" e salve como PDF.');
+    }finally{
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
   });
 
   // atualiza teto de carência dinamicamente
