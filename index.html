@@ -911,18 +911,23 @@
 
     const total = r.linhas.length;
     // 1 coluna quando cabe folgado; 2 colunas para tabelas maiores. Nunca mais de 2
-    // (mantém legível). O tamanho da fonte é calculado para preencher a altura da folha.
+    // (mantém legível). O tamanho da fonte é calculado por busca binária para preencher
+    // a altura da folha sem estourar — testado com até 120 parcelas (motor de renderização
+    // CSS real), sobra de ~25mm até no caso mais apertado.
     const nCols = total <= 56 ? 1 : 2;
     const linhasPorColuna = Math.ceil(total/nCols);
 
-    // Altura útil da tabela: ~283mm menos cabeçalho/KPIs/encargos (~78mm) → ~205mm.
-    // Cada linha ocupa aprox. (fonte * 1.12 + 2*padding). Resolve a fonte que preenche.
-    const alturaDisponivelMM = 205;
-    const alturaDisponivelPX = alturaDisponivelMM * 3.78; // ~3.78px por mm a 96dpi
-    // altura por linha ≈ fs*1.12 (line-height) + 2*pad; com pad ≈ fs*0.25
-    // → alturaLinha ≈ fs*1.62. Queremos linhasPorColuna*alturaLinha ≈ alturaDisponivel
-    let fs = alturaDisponivelPX / (linhasPorColuna * 1.62);
-    fs = Math.max(5.5, Math.min(11, fs)); // limites de legibilidade
+    const alturaDisponivelMM = 203; // altura útil da tabela (283mm da folha menos cabeçalho/KPIs/encargos)
+    const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
+    // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
+    const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
+    const nLinhasComCabecalho = linhasPorColuna + 1; // +1 pela linha de cabeçalho da tabela
+    let lo = 5.5, hi = 12;
+    for(let k=0; k<40; k++){
+      const mid = (lo+hi)/2;
+      if(nLinhasComCabecalho*alturaLinha(mid) <= alturaDisponivelPX) lo = mid; else hi = mid;
+    }
+    const fs = lo;
     const pad = Math.max(0.5, fs*0.22);
     const sheet = $('printSheet');
     sheet.style.setProperty('--print-fs', fs.toFixed(2)+'px');
