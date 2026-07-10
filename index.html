@@ -469,7 +469,8 @@
       <div class="p-kpi"><div class="pk-label">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
       <div class="p-kpi"><div class="pk-label">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
       <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
-      <div class="p-kpi"><div class="pk-label">CET aprox. (a.m. / a.a.)</div><div class="pk-value" id="pCET">—</div></div>
+      <div class="p-kpi"><div class="pk-label">Taxa nominal (a.m.)</div><div class="pk-value" id="pTaxaNominal">—</div></div>
+      <div class="p-kpi"><div class="pk-label">CET (a.m.)</div><div class="pk-value" id="pCET">—</div></div>
     </div>
     <div class="p-ded" id="pDedList"></div>
     <div class="p-cols" id="pCols"></div>
@@ -528,6 +529,15 @@
 
     <section class="card">
       <p class="card-title">Títulos do borderô <span id="descContagem" style="font-weight:400;color:var(--ink-faint);font-size:12.5px;">(0 títulos)</span></p>
+      <div class="field" style="margin-top:0;">
+        <label>Intervalo entre vencimentos</label>
+        <div class="seg" id="seg-intervalo" style="grid-template-columns:1fr 1fr 1fr;">
+          <button data-val="15">15 dias</button>
+          <button data-val="30">30 dias</button>
+          <button data-val="LIVRE" class="active">Livre</button>
+        </div>
+        <p class="hint">Com 15 ou 30 selecionado, cada novo título já vem com o vencimento calculado a partir do anterior (dá pra editar depois). "Livre" não preenche nada automaticamente.</p>
+      </div>
       <div id="descTitulosLista"></div>
       <button class="btn-ghost" id="btnAddTitulo" style="margin-top:10px;">+ Adicionar título</button>
       <button class="btn-primary" id="btnCalcularDesconto" style="margin-top:14px;">Calcular desconto</button>
@@ -929,7 +939,7 @@
     const cetMensal = calcCET(liquido, linhas);
     const cetAnual = Math.pow(1+cetMensal,12)-1;
 
-    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao, valorInformado, tipoValor, seguroAtivo: ded.prestamistaAtiva};
+    lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao, valorInformado, tipoValor, seguroAtivo: ded.prestamistaAtiva, taxaMensal};
     render(lastResult);
     $('results').style.display = 'block';
     $('results').scrollIntoView({behavior:'smooth', block:'start'});
@@ -987,7 +997,8 @@
     $('pBruto').textContent = fmtBRL(r.bruto);
     $('pLiquido').textContent = fmtBRL(r.liquido);
     $('pParcela1').textContent = primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—';
-    $('pCET').textContent = fmtPct(r.cetMensal) + ' / ' + fmtPct(r.cetAnual);
+    $('pTaxaNominal').textContent = fmtPct(r.taxaMensal/100);
+    $('pCET').textContent = fmtPct(r.cetMensal);
 
     let dedHtml = '';
     rows.forEach(row=>{
@@ -1178,17 +1189,38 @@
   // taxa diária de IOF por tipo de pessoa (igual à tabela oficial usada no empréstimo)
   const TAXA_IOF_DIARIA_POR_PESSOA = { PF: 0.000082, PJ: 0.000082, PJSN: 0.0000274 };
 
+  // intervalo entre vencimentos dos títulos: '15' | '30' | 'LIVRE'
+  let intervaloTitulos = 'LIVRE';
+  bindSeg('seg-intervalo', v=>{ intervaloTitulos = v; });
+
   let tituloSeq = 0;
   function addTituloRow(){
     tituloSeq++;
     const id = 'titulo_'+tituloSeq;
+
+    // se houver intervalo fixo (15/30) e o último título já tiver uma data,
+    // pré-preenche a data do novo título automaticamente (segue editável).
+    let dataAuto = '';
+    if(intervaloTitulos !== 'LIVRE'){
+      const rowsAtuais = $('descTitulosLista').querySelectorAll('.titulo-row');
+      if(rowsAtuais.length){
+        const ultimaDataStr = rowsAtuais[rowsAtuais.length-1].querySelector('.tituloData').value;
+        if(ultimaDataStr){
+          const [y,m,dd] = ultimaDataStr.split('-').map(Number);
+          const base = new Date(y, m-1, dd);
+          const nova = new Date(base.getTime() + parseInt(intervaloTitulos,10)*86400000);
+          dataAuto = toISODate(nova);
+        }
+      }
+    }
+
     const row = document.createElement('div');
     row.className = 'titulo-row';
     row.dataset.id = id;
     row.innerHTML = `
       <div class="field">
         <label>Vencimento do título</label>
-        <input type="date" class="tituloData">
+        <input type="date" class="tituloData" value="${dataAuto}">
       </div>
       <div class="field">
         <label>Valor (R$)</label>
