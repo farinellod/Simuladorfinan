@@ -194,6 +194,15 @@
   .foot-note{font-size:11px;color:var(--ink-faint);text-align:center;margin-top:24px;line-height:1.5;}
   a{color:var(--teal);}
 
+  .titulo-row{display:flex;gap:8px;align-items:flex-end;margin-top:10px;}
+  .titulo-row:first-child{margin-top:0;}
+  .titulo-row .field{flex:1;margin-top:0;}
+  .titulo-row .tituloRemove{
+    flex:0 0 auto;background:var(--navy-900);border:1px solid var(--line);color:var(--rose);
+    width:44px;height:44px;border-radius:9px;font-size:19px;cursor:pointer;line-height:1;
+  }
+  .titulo-row .tituloRemove:active{transform:scale(.96);}
+
   ::-webkit-scrollbar{width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--navy-600);border-radius:4px;}
 
@@ -267,6 +276,17 @@
 </header>
 
 <div class="wrap">
+
+  <!-- MODO: Empréstimo x Desconto de Títulos -->
+  <section class="card">
+    <p class="card-title">Modo</p>
+    <div class="seg" id="seg-modo">
+      <button data-val="EMPRESTIMO" class="active">Empréstimo (PRICE/SAC)</button>
+      <button data-val="DESCONTO">Desconto de Títulos</button>
+    </div>
+  </section>
+
+  <div id="modoEmprestimo">
 
   <!-- SISTEMA + VALOR -->
   <section class="card">
@@ -471,6 +491,71 @@
       <p class="hint">Padrão de mercado vigente para PJ (0,38% fixo sobre o bruto + 0,0082% a.d.). O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
     </div>
   </details>
+
+  </div><!-- /modoEmprestimo -->
+
+  <!-- MODO DESCONTO DE TÍTULOS -->
+  <div id="modoDesconto" class="hidden">
+
+    <section class="card">
+      <p class="card-title">Desconto de títulos (borderô)</p>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Data de contratação / liberação</label>
+          <input type="date" id="descLiberacao">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Taxa de desconto (% a.m.)</label>
+          <input type="number" id="descTaxa" step="0.01" value="1.49">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Tarifa (R$, por borderô)</label>
+          <input type="text" id="descTarifa" inputmode="decimal" placeholder="0,00" value="40,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Tipo de pessoa (IOF)</label>
+          <select id="descPessoa">
+            <option value="PF">Pessoa Física</option>
+            <option value="PJ" selected>Pessoa Jurídica</option>
+            <option value="PJSN">PJ optante Simples Nacional</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint">IOF: 0,38% fixo sobre o valor líquido pós-desconto + diário por título (0,0082% a.d. PF/PJ, ou 0,00274% a.d. PJ Simples — teto de 365 dias), igual à metodologia do banco.</p>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Títulos do borderô <span id="descContagem" style="font-weight:400;color:var(--ink-faint);font-size:12.5px;">(0 títulos)</span></p>
+      <div id="descTitulosLista"></div>
+      <button class="btn-ghost" id="btnAddTitulo" style="margin-top:10px;">+ Adicionar título</button>
+      <button class="btn-primary" id="btnCalcularDesconto" style="margin-top:14px;">Calcular desconto</button>
+    </section>
+
+    <section id="descResults" class="hidden">
+      <div class="card">
+        <p class="card-title">Resumo</p>
+        <div class="kpi-grid">
+          <div class="kpi accent"><div class="k-label">Valor do borderô</div><div class="k-value" id="outBorderoBruto">—</div></div>
+          <div class="kpi"><div class="k-label">Valor líquido</div><div class="k-value" id="outBorderoLiquido">—</div></div>
+        </div>
+        <div class="deduction-list" id="descDedList"></div>
+      </div>
+      <div class="card">
+        <p class="card-title">Detalhe por título</p>
+        <div class="table-scroll">
+          <table class="amort" id="tabelaDesconto">
+            <thead>
+              <tr><th>#</th><th>Vencimento</th><th>Dias</th><th>Valor</th><th>Desconto (juros)</th><th>IOF</th><th>Valor líquido</th></tr>
+            </thead>
+            <tbody id="tabelaDescontoBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /modoDesconto -->
 
   <p class="foot-note">Ferramenta de apoio à simulação. Os valores finais de contrato seguem sempre o sistema oficial do banco.</p>
 </div>
@@ -1079,6 +1164,141 @@
     if(!$('dataPrimeiraParcela').value){ primeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcela(); }
   });
   autoPreencherPrimeiraParcela();
+
+  // ============================================================
+  // MODO: DESCONTO DE TÍTULOS
+  // ============================================================
+  bindSeg('seg-modo', v=>{
+    $('modoEmprestimo').classList.toggle('hidden', v!=='EMPRESTIMO');
+    $('modoDesconto').classList.toggle('hidden', v!=='DESCONTO');
+  });
+
+  aplicarMascaraMoeda($('descTarifa'));
+
+  // taxa diária de IOF por tipo de pessoa (igual à tabela oficial usada no empréstimo)
+  const TAXA_IOF_DIARIA_POR_PESSOA = { PF: 0.000082, PJ: 0.000082, PJSN: 0.0000274 };
+
+  let tituloSeq = 0;
+  function addTituloRow(){
+    tituloSeq++;
+    const id = 'titulo_'+tituloSeq;
+    const row = document.createElement('div');
+    row.className = 'titulo-row';
+    row.dataset.id = id;
+    row.innerHTML = `
+      <div class="field">
+        <label>Vencimento do título</label>
+        <input type="date" class="tituloData">
+      </div>
+      <div class="field">
+        <label>Valor (R$)</label>
+        <input type="text" class="tituloValor" inputmode="decimal" placeholder="0,00">
+      </div>
+      <button type="button" class="tituloRemove" title="Remover título">×</button>
+    `;
+    $('descTitulosLista').appendChild(row);
+    aplicarMascaraMoeda(row.querySelector('.tituloValor'));
+    row.querySelector('.tituloRemove').addEventListener('click', ()=>{
+      row.remove();
+      atualizarContagemTitulos();
+    });
+    atualizarContagemTitulos();
+    return row;
+  }
+  function atualizarContagemTitulos(){
+    const n = $('descTitulosLista').querySelectorAll('.titulo-row').length;
+    $('descContagem').textContent = `(${n} título${n===1?'':'s'})`;
+  }
+  $('btnAddTitulo').addEventListener('click', ()=> addTituloRow());
+
+  function parseDataInput(el){
+    const v = el.value;
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+
+  function calcularDesconto(){
+    const liberacao = parseDataInput($('descLiberacao')) || new Date();
+    const taxaMensal = (parseFloat($('descTaxa').value)||0)/100;
+    const tarifa = parseMoeda($('descTarifa'));
+    const pessoa = $('descPessoa').value;
+    const taxaIofDiaria = TAXA_IOF_DIARIA_POR_PESSOA[pessoa] ?? TAXA_IOF_DIARIA_POR_PESSOA.PJ;
+
+    const linhas = [];
+    $('descTitulosLista').querySelectorAll('.titulo-row').forEach(row=>{
+      const dataEl = row.querySelector('.tituloData');
+      const valorEl = row.querySelector('.tituloValor');
+      const dataVenc = parseDataInput(dataEl);
+      const valor = parseMoeda(valorEl);
+      if(!dataVenc || !valor) return; // ignora linhas incompletas
+      const dias = Math.round((dataVenc - liberacao)/86400000);
+      const diasIOF = Math.max(0, Math.min(dias, 365));
+      // desconto (juros) por título: juros compostos pelos dias corridos até o vencimento
+      const juros = dias>0 ? valor*(Math.pow(1+taxaMensal, dias/30)-1) : 0;
+      const valorLiquido = valor - juros;
+      const iof = valorLiquido*diasIOF*taxaIofDiaria;
+      linhas.push({dataVenc, valor, dias, juros, iof, valorLiquido});
+    });
+
+    if(!linhas.length) return null;
+
+    linhas.sort((a,b)=>a.dataVenc-b.dataVenc);
+
+    const valorBordero = linhas.reduce((s,l)=>s+l.valor,0);
+    const totalJuros = linhas.reduce((s,l)=>s+l.juros,0);
+    const valorPosDesconto = valorBordero - totalJuros;
+    const iofDiarioTotal = linhas.reduce((s,l)=>s+l.iof,0);
+    const iofAdicional = valorPosDesconto*0.0038;
+    const iofTotal = iofDiarioTotal + iofAdicional;
+    const valorLiquidoFinal = valorPosDesconto - iofTotal - tarifa;
+
+    return { linhas, valorBordero, totalJuros, valorPosDesconto, iofTotal, tarifa, valorLiquidoFinal, liberacao };
+  }
+
+  function renderDesconto(r){
+    $('outBorderoBruto').textContent = fmtBRL(r.valorBordero);
+    $('outBorderoLiquido').textContent = fmtBRL(r.valorLiquidoFinal);
+
+    const rows = [
+      {label:'Desconto (juros)', val: r.totalJuros},
+      {label:'IOF', val: r.iofTotal},
+      {label:'Tarifa', val: r.tarifa},
+    ];
+    let html = '';
+    rows.forEach(row=>{
+      html += `<div class="ded-row negative"><span class="label">${row.label}</span><span class="val">- ${fmtBRL(row.val)}</span></div>`;
+    });
+    html += `<div class="ded-row total"><span class="label">Valor líquido do borderô</span><span class="val">${fmtBRL(r.valorLiquidoFinal)}</span></div>`;
+    $('descDedList').innerHTML = html;
+
+    let tbody = '';
+    r.linhas.forEach((l,i)=>{
+      tbody += `<tr>
+        <td>${i+1}</td>
+        <td>${fmtData(l.dataVenc)}</td>
+        <td>${l.dias}</td>
+        <td>${fmtBRL(l.valor)}</td>
+        <td>${fmtBRL(l.juros)}</td>
+        <td>${fmtBRL(l.iof)}</td>
+        <td>${fmtBRL(l.valorLiquido)}</td>
+      </tr>`;
+    });
+    $('tabelaDescontoBody').innerHTML = tbody;
+    $('descResults').classList.remove('hidden');
+  }
+
+  $('btnCalcularDesconto').addEventListener('click', ()=>{
+    const r = calcularDesconto();
+    if(!r){ alert('Adicione ao menos um título com data de vencimento e valor preenchidos.'); return; }
+    renderDesconto(r);
+  });
+
+  // inicializa com data de hoje e 1 título vazio
+  (function initDesconto(){
+    $('descLiberacao').value = toISODate(new Date());
+    addTituloRow();
+  })();
 })();
 </script>
 </body>
