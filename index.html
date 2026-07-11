@@ -462,22 +462,6 @@
     </div>
   </section>
 
-  <!-- FOLHA DE IMPRESSÃO (somente aparece no print) -->
-  <div id="printSheet">
-    <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
-    <p class="p-sub" id="pSub"></p>
-    <div class="p-kpis">
-      <div class="p-kpi"><div class="pk-label" id="pBrutoLabel">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
-      <div class="p-kpi"><div class="pk-label" id="pLiquidoLabel">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
-      <div class="p-kpi" id="pExtraBox" style="display:none;"><div class="pk-label" id="pExtraLabel">—</div><div class="pk-value" id="pExtra">—</div></div>
-      <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
-      <div class="p-kpi"><div class="pk-label">Taxa nominal (a.m.)</div><div class="pk-value" id="pTaxaNominal">—</div></div>
-      <div class="p-kpi"><div class="pk-label">CET (a.m.)</div><div class="pk-value" id="pCET">—</div></div>
-    </div>
-    <div class="p-ded" id="pDedList"></div>
-    <div class="p-cols" id="pCols"></div>
-  </div>
-
   <details class="adv">
     <summary>Parâmetros avançados (IOF)</summary>
     <div class="adv-body card" style="margin-top:0;">
@@ -745,6 +729,25 @@
     </section>
 
   </div><!-- /modoDesconto -->
+
+  <!-- FOLHA DE IMPRESSÃO (somente aparece no print) — fica FORA dos modos (Empréstimo/
+       Renegociação/Desconto) de propósito: se ficasse dentro de um deles, a classe
+       .hidden do modo inativo escondia este elemento também, deixando a impressão e o
+       PDF em branco quando gerados a partir de uma aba diferente da de Empréstimo. -->
+  <div id="printSheet">
+    <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
+    <p class="p-sub" id="pSub"></p>
+    <div class="p-kpis">
+      <div class="p-kpi"><div class="pk-label" id="pBrutoLabel">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
+      <div class="p-kpi"><div class="pk-label" id="pLiquidoLabel">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
+      <div class="p-kpi" id="pExtraBox" style="display:none;"><div class="pk-label" id="pExtraLabel">—</div><div class="pk-value" id="pExtra">—</div></div>
+      <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
+      <div class="p-kpi"><div class="pk-label">Taxa nominal (a.m.)</div><div class="pk-value" id="pTaxaNominal">—</div></div>
+      <div class="p-kpi"><div class="pk-label">CET (a.m.)</div><div class="pk-value" id="pCET">—</div></div>
+    </div>
+    <div class="p-ded" id="pDedList"></div>
+    <div class="p-cols" id="pCols"></div>
+  </div>
 
   <p class="foot-note">Ferramenta de apoio à simulação. Os valores finais de contrato seguem sempre o sistema oficial do banco.</p>
 </div>
