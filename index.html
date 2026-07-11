@@ -214,7 +214,7 @@
   @media print{
     @page{ size:A4 portrait; margin:7mm; }
     body{background:#fff !important;color:#0b1220 !important;padding:0;}
-    header.top, .wrap > section.card, #btnCalcular, details.adv, .foot-note, #results{display:none !important;}
+    header.top, .wrap section.card, #btnCalcular, #btnCalcularReneg, #btnCalcularDesconto, details.adv, .foot-note, #results, #resultsReneg, #descResults{display:none !important;}
     #printSheet{
       display:flex !important;flex-direction:column;height:283mm;overflow:hidden;
       color:#0b1220;font-family:var(--sans);
@@ -1225,7 +1225,7 @@
     const nCols = total <= 56 ? 1 : 2;
     const linhasPorColuna = Math.ceil(total/nCols);
 
-    const alturaDisponivelMM = 203; // altura útil da tabela (283mm da folha menos cabeçalho/KPIs/encargos)
+    const alturaDisponivelMM = opts.extra ? 191 : 203; // menos ~12mm quando há a caixa extra de KPI (Renegociação)
     const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
     // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
     const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
@@ -1318,9 +1318,17 @@
     try{
       const sheet = $('printSheet');
       sheet.classList.add('print-render');
-      await new Promise(res=>setTimeout(res, 60));
-      const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: sheet.scrollWidth});
+      // espera o layout (fontes, grid, variáveis CSS) assentar antes de capturar
+      await new Promise(res=>setTimeout(res, 150));
+      // largura fixa em px (196mm a 96dpi) — evita ambiguidade de scrollWidth em
+      // elemento fora da tela (position:fixed; left:-9999px)
+      const larguraPx = Math.round(196 * 3.7795);
+      const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: larguraPx, width: larguraPx});
       sheet.classList.remove('print-render');
+
+      if(!canvas || !canvas.width || !canvas.height){
+        throw new Error('Canvas gerado com dimensões inválidas ('+(canvas&&canvas.width)+'x'+(canvas&&canvas.height)+')');
+      }
 
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
@@ -1336,6 +1344,7 @@
       return true;
     }catch(e){
       $('printSheet').classList.remove('print-render');
+      console.error('Erro ao gerar PDF:', e);
       alert('Não foi possível gerar o PDF automaticamente. Use "Imprimir simulação" e salve como PDF.');
       return false;
     }finally{
