@@ -280,8 +280,9 @@
   <!-- MODO: Empréstimo x Desconto de Títulos -->
   <section class="card">
     <p class="card-title">Modo</p>
-    <div class="seg" id="seg-modo">
+    <div class="seg" id="seg-modo" style="grid-template-columns:1fr 1fr 1fr;">
       <button data-val="EMPRESTIMO" class="active">Empréstimo (PRICE/SAC)</button>
+      <button data-val="RENEGOCIACAO">Renegociação</button>
       <button data-val="DESCONTO">Desconto de Títulos</button>
     </div>
   </section>
@@ -466,8 +467,9 @@
     <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
     <p class="p-sub" id="pSub"></p>
     <div class="p-kpis">
-      <div class="p-kpi"><div class="pk-label">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
-      <div class="p-kpi"><div class="pk-label">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
+      <div class="p-kpi"><div class="pk-label" id="pBrutoLabel">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
+      <div class="p-kpi"><div class="pk-label" id="pLiquidoLabel">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
+      <div class="p-kpi" id="pExtraBox" style="display:none;"><div class="pk-label" id="pExtraLabel">—</div><div class="pk-value" id="pExtra">—</div></div>
       <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
       <div class="p-kpi"><div class="pk-label">Taxa nominal (a.m.)</div><div class="pk-value" id="pTaxaNominal">—</div></div>
       <div class="p-kpi"><div class="pk-label">CET (a.m.)</div><div class="pk-value" id="pCET">—</div></div>
@@ -494,6 +496,183 @@
   </details>
 
   </div><!-- /modoEmprestimo -->
+
+  <!-- MODO RENEGOCIAÇÃO -->
+  <div id="modoRenegociacao" class="hidden">
+
+    <section class="card">
+      <p class="card-title">Sistema de amortização</p>
+      <div class="seg" id="seg-sistema-reneg">
+        <button data-val="PRICE" class="active">PRICE</button>
+        <button data-val="SAC">SAC</button>
+      </div>
+
+      <div class="row2" style="margin-top:14px;">
+        <div class="field" style="margin-top:0;">
+          <label>Valor total da dívida (R$)</label>
+          <input type="text" id="renegValorTotal" inputmode="decimal" placeholder="0,00" value="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Valor de entrada (R$)</label>
+          <input type="text" id="renegValorEntrada" inputmode="decimal" placeholder="0,00" value="0,00">
+        </div>
+      </div>
+      <div class="field">
+        <label>Valor a financiar (total − entrada)</label>
+        <input type="text" id="renegValorFinanciar" value="R$ 0,00" disabled style="opacity:0.85;">
+        <p class="hint">Calculado automaticamente — é esse valor que entra na simulação PRICE/SAC abaixo.</p>
+      </div>
+
+      <div class="row2" style="margin-top:14px;" id="row-taxa-price-reneg">
+        <div class="field" style="margin-top:0;">
+          <label>Taxa de juros (% a.m.)</label>
+          <input type="number" id="renegTaxaMensal" step="0.01" value="1.99">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Prazo total (meses, máx. 120)</label>
+          <input type="number" id="renegPrazo" max="120" min="1" value="48">
+        </div>
+      </div>
+      <div class="hidden" id="row-taxa-sac-reneg">
+        <div class="row2" style="margin-top:14px;">
+          <div class="field" style="margin-top:0;">
+            <label>Taxa pré (% a.m.)</label>
+            <input type="number" id="renegTaxaPre" step="0.01" value="1.99">
+          </div>
+          <div class="field" style="margin-top:0;">
+            <label>Taxa pós / indexador (% a.m.)</label>
+            <input type="number" id="renegTaxaPos" step="0.01" value="0">
+          </div>
+        </div>
+        <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
+        <div class="field">
+          <label>Prazo total (meses, máx. 120)</label>
+          <input type="number" id="renegPrazoSac" max="120" min="1" value="48">
+        </div>
+      </div>
+      <div class="field">
+        <label>Carência (meses até o vencimento da 1ª parcela)</label>
+        <input type="number" id="renegCarencia" min="0" value="0">
+      </div>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Data de liberação</label>
+          <input type="date" id="renegDataLiberacao">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Data da 1ª parcela</label>
+          <input type="date" id="renegDataPrimeiraParcela">
+        </div>
+      </div>
+      <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação e da carência — editável se precisar.</p>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Encargos sobre a operação</p>
+
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">IOF (PJ)</div>
+          <div class="tdesc">Sempre calculado — fixo + diário, teto 365 dias.</div>
+        </div>
+        <span class="badge on">Automático</span>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">Tarifa de cadastro</div>
+          <div class="tdesc">1% do valor a financiar, limitado a R$ 4.000</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="renegTarifaAtiva">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">Seguro prestamista</div>
+          <div class="tdesc">Prêmio único, calculado sobre o valor a financiar</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="renegPrestamistaAtiva">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="sub-panel hidden" id="renegPrestamistaPanel">
+        <div class="field" style="margin-top:0;">
+          <label>Data de nascimento do associado</label>
+          <input type="date" id="renegPrestamistaNascimento">
+        </div>
+        <p class="hint">A taxa é definida automaticamente pela faixa etária na data de liberação.</p>
+      </div>
+
+      <p class="hint">Importante: IOF, tarifa e seguro prestamista são calculados e exibidos para referência, mas <strong>não são descontados</strong> do valor a financiar — a simulação (parcelas) e o PDF usam sempre o valor cheio (total − entrada).</p>
+    </section>
+
+    <button class="btn-primary" id="btnCalcularReneg">Calcular renegociação</button>
+
+    <!-- RESULTADOS RENEGOCIAÇÃO -->
+    <section id="resultsReneg" class="hidden">
+      <div class="card">
+        <p class="card-title">Antes da simulação</p>
+        <div class="kpi-grid">
+          <div class="kpi accent">
+            <div class="k-label">Valor total da dívida</div>
+            <div class="k-value" id="renegOutTotal">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Valor de entrada + IOF</div>
+            <div class="k-value" id="renegOutEntradaIOF">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Resumo da simulação <span id="renegBadgeSistema" class="badge on">PRICE</span></p>
+        <div class="kpi-grid">
+          <div class="kpi accent">
+            <div class="k-label">Valor a financiar</div>
+            <div class="k-value" id="renegOutFinanciar">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">1ª parcela</div>
+            <div class="k-value" id="renegOutParcela1">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Taxa nominal (a.m.)</div>
+            <div class="k-value" id="renegOutTaxaNominal">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">CET aprox. (a.m.)</div>
+            <div class="k-value" id="renegOutCET">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Encargos (referência — não descontados)</p>
+        <div class="deduction-list" id="renegDedList"></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Tabela de amortização</p>
+        <div class="table-scroll">
+          <table class="amort" id="tabelaAmortReneg">
+            <thead>
+              <tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amortização</th><th>Saldo</th></tr>
+            </thead>
+            <tbody id="tabelaAmortRenegBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row">
+          <button class="btn-ghost" id="btnImprimirReneg">Imprimir simulação</button>
+          <button class="btn-ghost" id="btnBaixarReneg">Baixar simulação (PDF)</button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /modoRenegociacao -->
 
   <!-- MODO DESCONTO DE TÍTULOS -->
   <div id="modoDesconto" class="hidden">
@@ -992,22 +1171,53 @@
     $('tabelaAmortBody').innerHTML = tbody;
 
     // ---- folha de impressão ----
-    $('pSistema').textContent = r.sistema;
-    $('pSub').textContent = `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`;
-    $('pBruto').textContent = fmtBRL(r.bruto);
-    $('pLiquido').textContent = fmtBRL(r.liquido);
-    $('pParcela1').textContent = primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—';
-    $('pTaxaNominal').textContent = fmtPct(r.taxaMensal/100);
-    $('pCET').textContent = fmtPct(r.cetMensal);
+    preencherFolhaImpressao({
+      sistema: r.sistema,
+      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
+      brutoLabel: 'Valor bruto', brutoVal: fmtBRL(r.bruto),
+      liquidoLabel: 'Valor líquido', liquidoVal: fmtBRL(r.liquido),
+      extra: null,
+      parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
+      taxaNominal: fmtPct(r.taxaMensal/100),
+      cet: fmtPct(r.cetMensal),
+      dedRows: rows.map(row=>({label:row.label, active:row.active, val:fmtBRL(row.val)})),
+      dedTotalLabel: 'Total de encargos', dedTotalVal: fmtBRL(d.total),
+      linhas: r.linhas
+    });
+  }
+
+  // Preenche a #printSheet (usada tanto pelo Empréstimo quanto pela Renegociação) —
+  // inclui o algoritmo de dimensionamento de fonte/colunas testado para caber sempre
+  // em 1 folha A4 retrato, até 120 parcelas.
+  function preencherFolhaImpressao(opts){
+    $('pSistema').textContent = opts.sistema;
+    $('pSub').textContent = opts.sub;
+    $('pBrutoLabel').textContent = opts.brutoLabel;
+    $('pBruto').textContent = opts.brutoVal;
+    $('pLiquidoLabel').textContent = opts.liquidoLabel;
+    $('pLiquido').textContent = opts.liquidoVal;
+    if(opts.extra){
+      $('pExtraBox').style.display = '';
+      $('pExtraLabel').textContent = opts.extra.label;
+      $('pExtra').textContent = opts.extra.value;
+    } else {
+      $('pExtraBox').style.display = 'none';
+    }
+    $('pParcela1').textContent = opts.parcela1;
+    $('pTaxaNominal').textContent = opts.taxaNominal;
+    $('pCET').textContent = opts.cet;
 
     let dedHtml = '';
-    rows.forEach(row=>{
-      dedHtml += `<span><span class="lbl">${row.label}${row.active?'':' (inativo)'}:</span> ${fmtBRL(row.val)}</span>`;
+    opts.dedRows.forEach(row=>{
+      dedHtml += `<span><span class="lbl">${row.label}${row.active===false?' (inativo)':''}:</span> ${row.val}</span>`;
     });
-    dedHtml += `<span><span class="lbl">Total de encargos:</span> ${fmtBRL(d.total)}</span>`;
+    if(opts.dedTotalLabel){
+      dedHtml += `<span><span class="lbl">${opts.dedTotalLabel}:</span> ${opts.dedTotalVal}</span>`;
+    }
     $('pDedList').innerHTML = dedHtml;
 
-    const total = r.linhas.length;
+    const linhas = opts.linhas;
+    const total = linhas.length;
     // 1 coluna quando cabe folgado; 2 colunas para tabelas maiores. Nunca mais de 2
     // (mantém legível). O tamanho da fonte é calculado por busca binária para preencher
     // a altura da folha sem estourar — testado com até 120 parcelas (motor de renderização
@@ -1033,7 +1243,7 @@
 
     let colsHtml = '';
     for(let c=0; c<nCols; c++){
-      const fatia = r.linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
+      const fatia = linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
       if(!fatia.length) continue;
       let corpo = '';
       fatia.forEach(l=>{
@@ -1074,9 +1284,12 @@
     });
   });
 
+  function imprimirSimulacao(temResultado, calcularFn){
+    if(!temResultado){ calcularFn(); }
+    window.print();
+  }
   $('btnImprimir').addEventListener('click', ()=>{
-    if(!lastResult){ $('btnCalcular').click(); }
-    if(lastResult) window.print();
+    imprimirSimulacao(!!lastResult, ()=>$('btnCalcular').click());
   });
 
   // monta o nome do arquivo: valor-prazo-seguro-carencia
@@ -1091,24 +1304,20 @@
     return `${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
   }
 
-  $('btnBaixar').addEventListener('click', async ()=>{
-    if(!lastResult){ $('btnCalcular').click(); }
-    if(!lastResult) return;
-    // se as bibliotecas de PDF não carregaram (ex.: sem internet), usa a impressão nativa
+  // Gera e baixa o PDF a partir do #printSheet já preenchido (reutilizável por
+  // Empréstimo e Renegociação). Retorna true se conseguiu gerar, false se caiu no fallback.
+  async function gerarEBaixarPDF(nomeArquivo, btn){
     if(typeof html2canvas==='undefined' || !window.jspdf){
       alert('Para baixar o PDF é preciso conexão com a internet. Vou abrir a impressão — escolha "Salvar como PDF".');
       window.print();
-      return;
+      return false;
     }
-    const btn = $('btnBaixar');
     const orig = btn.textContent;
     btn.textContent = 'Gerando PDF...';
     btn.disabled = true;
     try{
       const sheet = $('printSheet');
-      // aplica o layout de impressão temporariamente (fora do @media print)
       sheet.classList.add('print-render');
-      // pequena espera para o navegador aplicar o estilo antes da captura
       await new Promise(res=>setTimeout(res, 60));
       const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: sheet.scrollWidth});
       sheet.classList.remove('print-render');
@@ -1118,20 +1327,27 @@
       const pageW = 210, pageH = 297, margin = 7;
       const usableW = pageW - margin*2;
       const usableH = pageH - margin*2;
-      // escala a imagem para caber na largura útil; se exceder a altura, reduz para caber (1 página)
       let imgW = usableW;
       let imgH = canvas.height * (imgW/canvas.width);
       if(imgH > usableH){ imgH = usableH; imgW = canvas.width * (imgH/canvas.height); }
       const x = (pageW - imgW)/2;
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, margin, imgW, imgH);
-      pdf.save(nomeArquivoPDF());
+      pdf.save(nomeArquivo);
+      return true;
     }catch(e){
       $('printSheet').classList.remove('print-render');
       alert('Não foi possível gerar o PDF automaticamente. Use "Imprimir simulação" e salve como PDF.');
+      return false;
     }finally{
       btn.textContent = orig;
       btn.disabled = false;
     }
+  }
+
+  $('btnBaixar').addEventListener('click', async ()=>{
+    if(!lastResult){ $('btnCalcular').click(); }
+    if(!lastResult) return;
+    await gerarEBaixarPDF(nomeArquivoPDF(), $('btnBaixar'));
   });
 
   // atualiza teto de carência dinamicamente
@@ -1181,6 +1397,7 @@
   // ============================================================
   bindSeg('seg-modo', v=>{
     $('modoEmprestimo').classList.toggle('hidden', v!=='EMPRESTIMO');
+    $('modoRenegociacao').classList.toggle('hidden', v!=='RENEGOCIACAO');
     $('modoDesconto').classList.toggle('hidden', v!=='DESCONTO');
   });
 
@@ -1330,6 +1547,236 @@
   (function initDesconto(){
     $('descLiberacao').value = toISODate(new Date());
     addTituloRow();
+  })();
+
+  // ============================================================
+  // MODO: RENEGOCIAÇÃO
+  // ============================================================
+  let sistemaReneg = 'PRICE';
+  let lastResultReneg = null;
+
+  bindSeg('seg-sistema-reneg', v=>{
+    sistemaReneg = v;
+    $('row-taxa-price-reneg').classList.toggle('hidden', v==='SAC');
+    $('row-taxa-sac-reneg').classList.toggle('hidden', v!=='SAC');
+  });
+
+  aplicarMascaraMoeda($('renegValorTotal'));
+  aplicarMascaraMoeda($('renegValorEntrada'));
+
+  function atualizarValorFinanciar(){
+    const total = parseMoeda($('renegValorTotal'));
+    const entrada = parseMoeda($('renegValorEntrada'));
+    const financiar = Math.max(0, total - entrada);
+    $('renegValorFinanciar').value = fmtBRL(financiar);
+  }
+  $('renegValorTotal').addEventListener('input', atualizarValorFinanciar);
+  $('renegValorEntrada').addEventListener('input', atualizarValorFinanciar);
+  atualizarValorFinanciar();
+
+  toggleSubPanel('renegPrestamistaAtiva','renegPrestamistaPanel');
+
+  ['renegPrazo','renegPrazoSac'].forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      let p = Math.round(parseFloat($(id).value)||1);
+      if(p>120){ $(id).value = 120; }
+    });
+  });
+
+  function parseDataRenegLiberacao(){
+    const v = $('renegDataLiberacao').value;
+    if(!v) return new Date();
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+  function parseDataRenegPrimeiraParcela(){
+    const v = $('renegDataPrimeiraParcela').value;
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+  let renegPrimeiraParcelaEditadaManualmente = false;
+  function autoPreencherPrimeiraParcelaReneg(){
+    if(renegPrimeiraParcelaEditadaManualmente) return;
+    const lib = parseDataRenegLiberacao();
+    const car = Math.max(0, Math.round(parseFloat($('renegCarencia').value)||0));
+    const meses = Math.max(car, 1);
+    $('renegDataPrimeiraParcela').value = toISODate(addMonths(lib, meses));
+  }
+  $('renegDataLiberacao').addEventListener('change', autoPreencherPrimeiraParcelaReneg);
+  $('renegCarencia').addEventListener('input', autoPreencherPrimeiraParcelaReneg);
+  $('renegDataPrimeiraParcela').addEventListener('input', ()=>{ renegPrimeiraParcelaEditadaManualmente = true; });
+  $('renegDataPrimeiraParcela').addEventListener('change', ()=>{
+    if(!$('renegDataPrimeiraParcela').value){ renegPrimeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcelaReneg(); }
+  });
+
+  // Encargos da renegociação: mesmas fórmulas de IOF/tarifa/prestamista do empréstimo,
+  // mas lendo dos campos próprios da Renegociação e SEM comissão de aval (não se aplica).
+  function calcDeducoesReneg(valorFinanciar, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
+    const linhasTmp = gerarTabela(valorFinanciar, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira);
+
+    const iofFixoPct = parseFloat($('iofFixo').value)/100;
+    const iofDiarioPct = parseFloat($('iofDiario').value)/100;
+    const iofFixo = valorFinanciar*iofFixoPct;
+    let iofDiario = 0;
+    linhasTmp.forEach(l=>{
+      const dias = Math.round((l.data - dataLiberacao)/86400000);
+      const diasCap = Math.min(dias, 365);
+      iofDiario += l.amort * diasCap * iofDiarioPct;
+    });
+    const iof = iofFixo + iofDiario;
+
+    const tarifaAtiva = $('renegTarifaAtiva').checked;
+    const tarifa = tarifaAtiva ? Math.min(valorFinanciar*0.01, 4000) : 0;
+
+    let prestamista = 0;
+    let prestamistaInfo = null;
+    const prestamistaAtiva = $('renegPrestamistaAtiva').checked;
+    if(prestamistaAtiva){
+      const v = $('renegPrestamistaNascimento').value;
+      const nascimento = v ? (()=>{ const [y,m,dd]=v.split('-').map(Number); return new Date(y,m-1,dd); })() : null;
+      if(nascimento){
+        const idade = calcIdade(nascimento, dataLiberacao);
+        const taxaIdade = taxaPrestamistaPorIdade(idade);
+        if(taxaIdade!=null){
+          const linhasSemCarencia = gerarTabela(valorFinanciar, taxaMensal, prazoTotal, 0, sistemaCalc, dataLiberacao);
+          const baseCalculo = sistemaCalc==='PRICE'
+            ? linhasSemCarencia.reduce((s,l)=>s+l.parcela, 0)
+            : valorFinanciar;
+          const ultimaData = linhasSemCarencia[linhasSemCarencia.length-1].data;
+          const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
+          prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
+          prestamistaInfo = {idade, taxaIdade, ok:true};
+        } else {
+          prestamistaInfo = {idade, taxaIdade:null, ok:false};
+        }
+      }
+    }
+
+    return {iof, tarifa, prestamista, total: iof+tarifa+prestamista, tarifaAtiva, prestamistaAtiva, prestamistaInfo, linhas: linhasTmp};
+  }
+
+  function calcularReneg(){
+    const valorTotal = parseMoeda($('renegValorTotal'));
+    const valorEntrada = parseMoeda($('renegValorEntrada'));
+    const valorFinanciar = Math.max(0, valorTotal - valorEntrada);
+    if(valorFinanciar<=0) return null;
+
+    let prazo = Math.round(parseFloat((sistemaReneg==='SAC' ? $('renegPrazoSac') : $('renegPrazo')).value)||1);
+    prazo = Math.min(120, Math.max(1,prazo));
+    let carencia = Math.round(parseFloat($('renegCarencia').value)||0);
+    carencia = Math.max(0, Math.min(carencia, prazo-1));
+
+    const taxaMensal = sistemaReneg==='SAC'
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
+
+    const dataLiberacao = parseDataRenegLiberacao();
+    const dataPrimeira = parseDataRenegPrimeiraParcela();
+
+    const ded = calcDeducoesReneg(valorFinanciar, prazo, carencia, taxaMensal, sistemaReneg, dataLiberacao, dataPrimeira);
+    const linhas = ded.linhas;
+    const cetMensal = calcCET(valorFinanciar, linhas);
+    const cetAnual = Math.pow(1+cetMensal,12)-1;
+
+    return { valorTotal, valorEntrada, valorFinanciar, ded, linhas, prazo, carencia, taxaMensal, sistema: sistemaReneg, dataLiberacao, cetMensal, cetAnual };
+  }
+
+  function renderReneg(r){
+    $('renegOutTotal').textContent = fmtBRL(r.valorTotal);
+    $('renegOutEntradaIOF').textContent = fmtBRL(r.valorEntrada + r.ded.iof);
+
+    $('renegBadgeSistema').textContent = r.sistema;
+    $('renegOutFinanciar').textContent = fmtBRL(r.valorFinanciar);
+    const primeiraParcela = r.linhas.find(l=>!l.carencia) || r.linhas[0];
+    $('renegOutParcela1').textContent = primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—';
+    $('renegOutTaxaNominal').textContent = fmtPct(r.taxaMensal/100);
+    $('renegOutCET').textContent = fmtPct(r.cetMensal);
+
+    const d = r.ded;
+    const pInfo = d.prestamistaInfo;
+    let prestamistaLabel = 'Seguro prestamista';
+    if(d.prestamistaAtiva){
+      if(pInfo && pInfo.ok){
+        prestamistaLabel += ` (${pInfo.idade} anos · ${fmtPct(pInfo.taxaIdade)} a.m.)`;
+      } else if(pInfo && !pInfo.ok){
+        prestamistaLabel += ' (fora da faixa etária permitida: 18 a 80 anos)';
+      } else {
+        prestamistaLabel += ' (informe a data de nascimento)';
+      }
+    }
+    const rows = [
+      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
+      {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
+    ];
+    let html = '';
+    rows.forEach(row=>{
+      html += `<div class="ded-row negative"><span class="label">${row.label}${row.active?'':' (inativo)'}</span><span class="val">${fmtBRL(row.val)}</span></div>`;
+    });
+    html += `<div class="ded-row total"><span class="label">Total (referência, não descontado)</span><span class="val">${fmtBRL(d.total)}</span></div>`;
+    $('renegDedList').innerHTML = html;
+
+    let tbody = '';
+    r.linhas.forEach(l=>{
+      tbody += `<tr class="${l.carencia?'carencia':''}">
+        <td>${l.n}</td>
+        <td>${fmtData(l.data)}</td>
+        <td>${l.carencia? '—' : fmtBRL(l.parcela)}</td>
+        <td>${fmtBRL(l.juros)}</td>
+        <td>${l.carencia? '—' : fmtBRL(l.amort)}</td>
+        <td>${fmtBRL(l.saldo)}</td>
+      </tr>`;
+    });
+    $('tabelaAmortRenegBody').innerHTML = tbody;
+    $('resultsReneg').classList.remove('hidden');
+
+    // ---- folha de impressão: valor final NÃO desconta IOF/tarifa/prestamista ----
+    preencherFolhaImpressao({
+      sistema: r.sistema + ' — Renegociação',
+      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
+      brutoLabel: 'Valor total da dívida', brutoVal: fmtBRL(r.valorTotal),
+      liquidoLabel: 'Valor a financiar', liquidoVal: fmtBRL(r.valorFinanciar),
+      extra: { label: 'Valor de entrada + IOF', value: fmtBRL(r.valorEntrada + d.iof) },
+      parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
+      taxaNominal: fmtPct(r.taxaMensal/100),
+      cet: fmtPct(r.cetMensal),
+      dedRows: rows.map(row=>({label:row.label, active:row.active, val:fmtBRL(row.val)})),
+      dedTotalLabel: 'Total de encargos (referência, não descontado)', dedTotalVal: fmtBRL(d.total),
+      linhas: r.linhas
+    });
+
+    lastResultReneg = r;
+  }
+
+  $('btnCalcularReneg').addEventListener('click', ()=>{
+    const r = calcularReneg();
+    if(!r){ alert('Informe o valor total e a entrada — o valor a financiar precisa ser maior que zero.'); return; }
+    renderReneg(r);
+  });
+
+  $('btnImprimirReneg').addEventListener('click', ()=>{
+    imprimirSimulacao(!!lastResultReneg, ()=>$('btnCalcularReneg').click());
+  });
+
+  function nomeArquivoPDFReneg(){
+    const r = lastResultReneg;
+    const valorStr = Math.round(r.valorFinanciar).toLocaleString('pt-BR').replace(/\./g,'');
+    const prazoStr = r.prazo + 'meses';
+    const seguroStr = r.ded.prestamistaAtiva ? 'comseguro' : 'semseguro';
+    const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
+    return `renegociacao-${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+  }
+  $('btnBaixarReneg').addEventListener('click', async ()=>{
+    if(!lastResultReneg){ $('btnCalcularReneg').click(); }
+    if(!lastResultReneg) return;
+    await gerarEBaixarPDF(nomeArquivoPDFReneg(), $('btnBaixarReneg'));
+  });
+
+  // inicializa data de liberação da renegociação com hoje
+  (function initReneg(){
+    $('renegDataLiberacao').value = toISODate(new Date());
+    autoPreencherPrimeiraParcelaReneg();
   })();
 })();
 </script>
