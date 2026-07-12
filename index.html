@@ -284,10 +284,11 @@
   <!-- MODO: Empréstimo x Desconto de Títulos -->
   <section class="card">
     <p class="card-title">Modo</p>
-    <div class="seg" id="seg-modo" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="seg" id="seg-modo" style="grid-template-columns:1fr 1fr;">
       <button data-val="EMPRESTIMO" class="active">Empréstimo (PRICE/SAC)</button>
       <button data-val="RENEGOCIACAO">Renegociação</button>
       <button data-val="DESCONTO">Desconto de Títulos</button>
+      <button data-val="QUITACAO">Quitação Antecipada PRICE</button>
     </div>
   </section>
 
@@ -733,6 +734,108 @@
     </section>
 
   </div><!-- /modoDesconto -->
+
+  <div id="modoQuitacao" class="hidden">
+
+    <section class="card">
+      <p class="card-title">Quitação antecipada — PRICE</p>
+      <p class="hint" style="margin-top:0;">Calcula a tabela PRICE normal e, ao lado, o valor de quitação de cada parcela com o desconto de antecipação com base na data de quitação informada. Usa o mesmo motor de cálculo da aba Empréstimo (PRICE/SAC).</p>
+
+      <div class="row2" style="margin-top:14px;">
+        <div class="field" style="margin-top:0;">
+          <label>Valor financiado (R$)</label>
+          <input type="text" id="quitValorFinanciado" inputmode="decimal" placeholder="0,00" value="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Taxa de juros (% a.m.)</label>
+          <input type="number" id="quitTaxaMensal" step="0.01" value="1.99">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Data de liberação</label>
+          <input type="date" id="quitDataLiberacao">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Data da 1ª parcela</label>
+          <input type="date" id="quitDataPrimeiraParcela">
+        </div>
+      </div>
+      <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação — editável se precisar.</p>
+
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Quantas vezes (prazo, máx. 120)</label>
+          <input type="number" id="quitPrazo" max="120" min="1" value="48">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Data da quitação</label>
+          <input type="date" id="quitDataQuitacao">
+        </div>
+      </div>
+      <p class="hint">Parcelas com vencimento até a data de quitação já estão vencidas: mostram apenas o valor cheio da parcela, sem desconto. Parcelas a vencer mostram o valor descontado (valor presente na data de quitação, pela taxa contratada).</p>
+    </section>
+
+    <button class="btn-primary" id="btnCalcularQuitacao">Calcular quitação antecipada</button>
+
+    <!-- RESULTADOS QUITAÇÃO ANTECIPADA -->
+    <section id="resultsQuitacao" class="hidden">
+      <div class="card">
+        <p class="card-title">Resumo</p>
+        <div class="kpi-grid">
+          <div class="kpi accent">
+            <div class="k-label">Valor financiado</div>
+            <div class="k-value" id="quitOutFinanciado">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Prazo</div>
+            <div class="k-value" id="quitOutPrazo">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Taxa nominal (a.m.)</div>
+            <div class="k-value" id="quitOutTaxa">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Data de quitação</div>
+            <div class="k-value" id="quitOutDataQuitacao">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Se quitar tudo na data informada</p>
+        <div class="kpi-grid">
+          <div class="kpi accent">
+            <div class="k-label">Total para quitação hoje</div>
+            <div class="k-value" id="quitOutTotalGeral">—</div>
+          </div>
+          <div class="kpi">
+            <div class="k-label">Economia com antecipação</div>
+            <div class="k-value" id="quitOutEconomia">—</div>
+          </div>
+        </div>
+        <p class="hint">Soma de: parcelas já vencidas pelo valor cheio + parcelas a vencer pelo valor de quitação (descontado).</p>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Tabela — parcela normal x valor de quitação</p>
+        <div class="table-scroll">
+          <table class="amort" id="tabelaQuitacao">
+            <thead>
+              <tr><th>#</th><th>Data</th><th>Parcela</th><th>Valor de quitação</th><th>Situação</th></tr>
+            </thead>
+            <tbody id="tabelaQuitacaoBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row">
+          <button class="btn-ghost" id="btnImprimirQuitacao">Imprimir simulação</button>
+          <button class="btn-ghost" id="btnBaixarQuitacao">Baixar simulação (PDF)</button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /modoQuitacao -->
 
   <!-- FOLHA DE IMPRESSÃO (somente aparece no print) — fica FORA dos modos (Empréstimo/
        Renegociação/Desconto) de propósito: se ficasse dentro de um deles, a classe
@@ -1196,7 +1299,8 @@
 
     // Quadrados principais (grid 2 colunas): bruto/liquido, 1ª parcela, e taxa+CET
     // juntos num só quadrado. Vale tanto para Empréstimo (PRICE/SAC) quanto Renegociação.
-    const kpis = [
+    // "kpis" pode vir pronto em opts (ex.: Quitação Antecipada, que não tem bruto/líquido/CET).
+    const kpis = opts.kpis || [
       {label: opts.brutoLabel, value: opts.brutoVal},
       {label: opts.liquidoLabel, value: opts.liquidoVal},
       {label: '1ª parcela', value: opts.parcela1},
@@ -1260,21 +1364,27 @@
     sheet.style.setProperty('--print-pad', pad.toFixed(2)+'px');
 
     let colsHtml = '';
+    // Colunas da tabela: por padrão, o layout de amortização de sempre (#, Data, Parcela,
+    // Juros, Amort., Saldo). "colunas" em opts permite outro layout (ex.: Quitação
+    // Antecipada, que troca Juros/Amort./Saldo por Valor de quitação + Situação).
+    const colunas = opts.colunas || [
+      {header:'#', cell:l=>l.n},
+      {header:'Data', cell:l=>fmtData(l.data)},
+      {header:'Parcela', cell:l=>l.carencia? '—' : fmtBRL(l.parcela)},
+      {header:'Juros', cell:l=>fmtBRL(l.juros)},
+      {header:'Amort.', cell:l=>l.carencia? '—' : fmtBRL(l.amort)},
+      {header:'Saldo', cell:l=>fmtBRL(l.saldo)},
+    ];
     for(let c=0; c<nCols; c++){
       const fatia = linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
       if(!fatia.length) continue;
       let corpo = '';
       fatia.forEach(l=>{
-        corpo += `<tr class="${l.carencia?'carencia':''}">
-          <td>${l.n}</td>
-          <td>${fmtData(l.data)}</td>
-          <td>${l.carencia? '—' : fmtBRL(l.parcela)}</td>
-          <td>${fmtBRL(l.juros)}</td>
-          <td>${l.carencia? '—' : fmtBRL(l.amort)}</td>
-          <td>${fmtBRL(l.saldo)}</td>
-        </tr>`;
+        corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
+          + colunas.map(col=>`<td>${col.cell(l)}</td>`).join('')
+          + `</tr>`;
       });
-      colsHtml += `<table><thead><tr><th>#</th><th>Data</th><th>Parcela</th><th>Juros</th><th>Amort.</th><th>Saldo</th></tr></thead><tbody>${corpo}</tbody></table>`;
+      colsHtml += `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
     }
     $('pCols').innerHTML = colsHtml;
   }
@@ -1426,6 +1536,7 @@
     $('modoEmprestimo').classList.toggle('hidden', v!=='EMPRESTIMO');
     $('modoRenegociacao').classList.toggle('hidden', v!=='RENEGOCIACAO');
     $('modoDesconto').classList.toggle('hidden', v!=='DESCONTO');
+    $('modoQuitacao').classList.toggle('hidden', v!=='QUITACAO');
   });
 
   aplicarMascaraMoeda($('descTarifa'));
@@ -1808,6 +1919,154 @@
   (function initReneg(){
     $('renegDataLiberacao').value = toISODate(new Date());
     autoPreencherPrimeiraParcelaReneg();
+  })();
+
+  // ============================================================
+  // MODO: QUITAÇÃO ANTECIPADA — PRICE
+  // ============================================================
+  // Reaproveita o MESMO motor de cálculo da aba Empréstimo (gerarTabela, sistema
+  // PRICE) para gerar a tabela normal. Ao lado de cada parcela, calcula o valor de
+  // quitação antecipada daquela parcela: valor presente na data de quitação, trazido
+  // pela mesma taxa contratada e pela mesma convenção de dias corridos/30 usada em
+  // todo o resto do simulador (Math.pow(1+i, dias/30)). Parcelas com vencimento igual
+  // ou anterior à data de quitação já estão vencidas: mostram o valor cheio, sem desconto.
+  let lastResultQuitacao = null;
+
+  aplicarMascaraMoeda($('quitValorFinanciado'));
+
+  function parseDataQuitCampo(id){
+    const v = $(id).value;
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+
+  let quitPrimeiraParcelaEditadaManualmente = false;
+  function autoPreencherPrimeiraParcelaQuitacao(){
+    if(quitPrimeiraParcelaEditadaManualmente) return;
+    const lib = parseDataQuitCampo('quitDataLiberacao') || new Date();
+    $('quitDataPrimeiraParcela').value = toISODate(addMonths(lib, 1));
+  }
+  $('quitDataLiberacao').addEventListener('change', autoPreencherPrimeiraParcelaQuitacao);
+  $('quitDataPrimeiraParcela').addEventListener('input', ()=>{ quitPrimeiraParcelaEditadaManualmente = true; });
+  $('quitDataPrimeiraParcela').addEventListener('change', ()=>{
+    if(!$('quitDataPrimeiraParcela').value){ quitPrimeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcelaQuitacao(); }
+  });
+
+  $('quitPrazo').addEventListener('input', ()=>{
+    let p = Math.round(parseFloat($('quitPrazo').value)||1);
+    if(p>120){ $('quitPrazo').value = 120; }
+  });
+
+  function calcularQuitacao(){
+    const valorFinanciado = parseMoeda($('quitValorFinanciado'));
+    const taxaMensal = parseFloat($('quitTaxaMensal').value)||0;
+    const dataLiberacao = parseDataQuitCampo('quitDataLiberacao') || new Date();
+    const dataPrimeira = parseDataQuitCampo('quitDataPrimeiraParcela');
+    let prazo = Math.round(parseFloat($('quitPrazo').value)||1);
+    prazo = Math.min(120, Math.max(1, prazo));
+    const dataQuitacao = parseDataQuitCampo('quitDataQuitacao');
+    if(valorFinanciado<=0 || !dataQuitacao) return null;
+
+    // mesma função PRICE usada na aba Empréstimo/Renegociação; sem carência aqui.
+    const linhasBase = gerarTabela(valorFinanciado, taxaMensal, prazo, 0, 'PRICE', dataLiberacao, dataPrimeira);
+    const i = taxaMensal/100;
+
+    let economiaTotal = 0, totalQuitacaoGeral = 0, qtdVencidas = 0;
+    const linhas = linhasBase.map(l=>{
+      const jaVencida = l.data <= dataQuitacao;
+      let valorQuitacao;
+      if(jaVencida){
+        valorQuitacao = l.parcela;
+        qtdVencidas++;
+      } else {
+        const dias = Math.round((l.data - dataQuitacao)/86400000);
+        valorQuitacao = i===0 ? l.parcela : l.parcela / Math.pow(1+i, dias/30);
+        economiaTotal += (l.parcela - valorQuitacao);
+      }
+      totalQuitacaoGeral += valorQuitacao;
+      return { ...l, jaVencida, valorQuitacao };
+    });
+
+    return { valorFinanciado, taxaMensal, dataLiberacao, dataPrimeira, prazo, dataQuitacao, linhas, economiaTotal, totalQuitacaoGeral, qtdVencidas };
+  }
+
+  function renderQuitacao(r){
+    $('quitOutFinanciado').textContent = fmtBRL(r.valorFinanciado);
+    $('quitOutPrazo').textContent = r.prazo + ' meses';
+    $('quitOutTaxa').textContent = fmtPct(r.taxaMensal/100);
+    $('quitOutDataQuitacao').textContent = fmtData(r.dataQuitacao);
+    $('quitOutTotalGeral').textContent = fmtBRL(r.totalQuitacaoGeral);
+    $('quitOutEconomia').textContent = fmtBRL(r.economiaTotal);
+
+    let tbody = '';
+    r.linhas.forEach(l=>{
+      tbody += `<tr class="${l.jaVencida?'carencia':''}">
+        <td>${l.n}</td>
+        <td>${fmtData(l.data)}</td>
+        <td>${fmtBRL(l.parcela)}</td>
+        <td>${fmtBRL(l.valorQuitacao)}</td>
+        <td>${l.jaVencida?'Vencida':'A vencer'}</td>
+      </tr>`;
+    });
+    $('tabelaQuitacaoBody').innerHTML = tbody;
+    $('resultsQuitacao').classList.remove('hidden');
+
+    preencherFolhaImpressao({
+      sistema: 'PRICE — Quitação Antecipada',
+      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses · Quitação em ${fmtData(r.dataQuitacao)} · Gerado em ${fmtData(new Date())}`,
+      kpis: [
+        {label:'Valor financiado', value: fmtBRL(r.valorFinanciado)},
+        {label:'Prazo', value: r.prazo + ' meses'},
+        {label:'Taxa nominal (a.m.)', value: fmtPct(r.taxaMensal/100)},
+        {label:'Data de quitação', value: fmtData(r.dataQuitacao)},
+      ],
+      extras: [
+        {label:'Total para quitação hoje', value: fmtBRL(r.totalQuitacaoGeral)},
+        {label:'Economia com antecipação', value: fmtBRL(r.economiaTotal)},
+        {label:'Parcelas já vencidas', value: String(r.qtdVencidas)},
+      ],
+      dedRows: [],
+      linhas: r.linhas,
+      colunas: [
+        {header:'#', cell:l=>l.n},
+        {header:'Data', cell:l=>fmtData(l.data)},
+        {header:'Parcela', cell:l=>fmtBRL(l.parcela)},
+        {header:'Quitação', cell:l=>fmtBRL(l.valorQuitacao)},
+        {header:'Situação', cell:l=>l.jaVencida?'Vencida':'A vencer'},
+      ],
+    });
+
+    lastResultQuitacao = r;
+  }
+
+  $('btnCalcularQuitacao').addEventListener('click', ()=>{
+    const r = calcularQuitacao();
+    if(!r){ alert('Informe o valor financiado e a data de quitação — o valor financiado precisa ser maior que zero.'); return; }
+    renderQuitacao(r);
+  });
+
+  $('btnImprimirQuitacao').addEventListener('click', ()=>{
+    imprimirSimulacao(!!lastResultQuitacao, ()=>$('btnCalcularQuitacao').click());
+  });
+
+  function nomeArquivoPDFQuitacao(){
+    const r = lastResultQuitacao;
+    const valorStr = Math.round(r.valorFinanciado).toLocaleString('pt-BR').replace(/\./g,'');
+    const prazoStr = r.prazo + 'meses';
+    return `quitacao-antecipada-price-${valorStr}-${prazoStr}.pdf`;
+  }
+  $('btnBaixarQuitacao').addEventListener('click', async ()=>{
+    if(!lastResultQuitacao){ $('btnCalcularQuitacao').click(); }
+    if(!lastResultQuitacao) return;
+    await gerarEBaixarPDF(nomeArquivoPDFQuitacao(), $('btnBaixarQuitacao'));
+  });
+
+  // datas padrão: liberação e quitação = hoje
+  (function initQuitacao(){
+    $('quitDataLiberacao').value = toISODate(new Date());
+    autoPreencherPrimeiraParcelaQuitacao();
+    $('quitDataQuitacao').value = toISODate(new Date());
   })();
 })();
 </script>
