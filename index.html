@@ -222,6 +222,8 @@
     #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
     #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
     #printSheet .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
+    #printSheet .p-extras-row{display:none;}
+    #printSheet .p-extras-row.show{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
     #printSheet .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
     #printSheet .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
     #printSheet .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
@@ -249,6 +251,8 @@
   #printSheet.print-render .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
   #printSheet.print-render .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
   #printSheet.print-render .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
+  #printSheet.print-render .p-extras-row{display:none;}
+  #printSheet.print-render .p-extras-row.show{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
   #printSheet.print-render .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
   #printSheet.print-render .p-kpi .pk-label{font-size:8.5px;text-transform:uppercase;color:#556;font-weight:700;}
   #printSheet.print-render .p-kpi .pk-value{font-family:var(--mono);font-size:12.5px;font-weight:700;}
@@ -738,6 +742,7 @@
     <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
     <p class="p-sub" id="pSub"></p>
     <div class="p-kpis" id="pKpis"></div>
+    <div class="p-extras-row" id="pExtrasRow"></div>
     <div class="p-ded" id="pDedList"></div>
     <div class="p-cols" id="pCols"></div>
   </div>
@@ -1189,21 +1194,31 @@
     $('pSistema').textContent = opts.sistema;
     $('pSub').textContent = opts.sub;
 
-    // Lista de quadrados (kpis) do topo. "extras" é uma lista opcional de caixas
-    // adicionais entre o 2º e o 4º quadrado padrão (usado pela Renegociação para
-    // separar Entrada, IOF e a soma dos dois, em vez de uma caixa única).
-    const extras = opts.extras || [];
+    // Quadrados principais (grid 2 colunas): bruto/liquido, 1ª parcela, e taxa+CET
+    // juntos num só quadrado. Vale tanto para Empréstimo (PRICE/SAC) quanto Renegociação.
     const kpis = [
       {label: opts.brutoLabel, value: opts.brutoVal},
       {label: opts.liquidoLabel, value: opts.liquidoVal},
-      ...extras,
       {label: '1ª parcela', value: opts.parcela1},
-      {label: 'Taxa nominal (a.m.)', value: opts.taxaNominal},
-      {label: 'CET (a.m.)', value: opts.cet},
+      {label: 'Taxa nominal / CET (a.m.)', value: `${opts.taxaNominal} / ${opts.cet}`},
     ];
     $('pKpis').innerHTML = kpis.map(k=>
       `<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`
     ).join('');
+
+    // "extras" (só na Renegociação): Entrada, IOF e a soma dos dois — sempre em
+    // 1 única linha de 3 quadradinhos, numa faixa própria abaixo dos kpis principais.
+    const extras = opts.extras || [];
+    const pExtrasRow = $('pExtrasRow');
+    if(extras.length){
+      pExtrasRow.innerHTML = extras.map(k=>
+        `<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`
+      ).join('');
+      pExtrasRow.classList.add('show');
+    } else {
+      pExtrasRow.innerHTML = '';
+      pExtrasRow.classList.remove('show');
+    }
 
     let dedHtml = '';
     opts.dedRows.forEach(row=>{
@@ -1223,15 +1238,12 @@
     const nCols = total <= 56 ? 1 : 2;
     const linhasPorColuna = Math.ceil(total/nCols);
 
-    // Altura disponível para a tabela: 203mm de base (título em 1 linha + 3 linhas de
-    // quadrados, caso padrão de 5 kpis). Cada quadrado extra que empurra os kpis para
-    // uma linha a mais consome ~11mm; título mais longo (ex.: "— Renegociação") consome
-    // mais ~12mm por poder quebrar em 2 linhas.
-    const nKpiRows = Math.ceil(kpis.length/2);
-    const linhasExtrasKpi = Math.max(0, nKpiRows-3);
+    // Altura disponível para a tabela: 203mm de base, calibrada para o caso padrão
+    // (título em 1 linha + 2 linhas de quadrados principais). Quando há a faixa extra
+    // de 3 quadradinhos (Renegociação: Entrada/IOF/Soma) + título mais longo
+    // ("— Renegociação", que pode quebrar em 2 linhas), reserva mais ~23mm.
     let alturaDisponivelMM = 203;
-    if(extras.length) alturaDisponivelMM -= 12;
-    alturaDisponivelMM -= linhasExtrasKpi*11;
+    if(extras.length) alturaDisponivelMM -= 23;
     const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
     // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
     const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
