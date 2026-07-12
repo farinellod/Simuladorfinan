@@ -737,14 +737,7 @@
   <div id="printSheet">
     <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
     <p class="p-sub" id="pSub"></p>
-    <div class="p-kpis">
-      <div class="p-kpi"><div class="pk-label" id="pBrutoLabel">Valor bruto</div><div class="pk-value" id="pBruto">—</div></div>
-      <div class="p-kpi"><div class="pk-label" id="pLiquidoLabel">Valor líquido</div><div class="pk-value" id="pLiquido">—</div></div>
-      <div class="p-kpi" id="pExtraBox" style="display:none;"><div class="pk-label" id="pExtraLabel">—</div><div class="pk-value" id="pExtra">—</div></div>
-      <div class="p-kpi"><div class="pk-label">1ª parcela</div><div class="pk-value" id="pParcela1">—</div></div>
-      <div class="p-kpi"><div class="pk-label">Taxa nominal (a.m.)</div><div class="pk-value" id="pTaxaNominal">—</div></div>
-      <div class="p-kpi"><div class="pk-label">CET (a.m.)</div><div class="pk-value" id="pCET">—</div></div>
-    </div>
+    <div class="p-kpis" id="pKpis"></div>
     <div class="p-ded" id="pDedList"></div>
     <div class="p-cols" id="pCols"></div>
   </div>
@@ -1179,7 +1172,7 @@
       sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
       brutoLabel: 'Valor bruto', brutoVal: fmtBRL(r.bruto),
       liquidoLabel: 'Valor líquido', liquidoVal: fmtBRL(r.liquido),
-      extra: null,
+      extras: [],
       parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
       taxaNominal: fmtPct(r.taxaMensal/100),
       cet: fmtPct(r.cetMensal),
@@ -1195,20 +1188,22 @@
   function preencherFolhaImpressao(opts){
     $('pSistema').textContent = opts.sistema;
     $('pSub').textContent = opts.sub;
-    $('pBrutoLabel').textContent = opts.brutoLabel;
-    $('pBruto').textContent = opts.brutoVal;
-    $('pLiquidoLabel').textContent = opts.liquidoLabel;
-    $('pLiquido').textContent = opts.liquidoVal;
-    if(opts.extra){
-      $('pExtraBox').style.display = '';
-      $('pExtraLabel').textContent = opts.extra.label;
-      $('pExtra').textContent = opts.extra.value;
-    } else {
-      $('pExtraBox').style.display = 'none';
-    }
-    $('pParcela1').textContent = opts.parcela1;
-    $('pTaxaNominal').textContent = opts.taxaNominal;
-    $('pCET').textContent = opts.cet;
+
+    // Lista de quadrados (kpis) do topo. "extras" é uma lista opcional de caixas
+    // adicionais entre o 2º e o 4º quadrado padrão (usado pela Renegociação para
+    // separar Entrada, IOF e a soma dos dois, em vez de uma caixa única).
+    const extras = opts.extras || [];
+    const kpis = [
+      {label: opts.brutoLabel, value: opts.brutoVal},
+      {label: opts.liquidoLabel, value: opts.liquidoVal},
+      ...extras,
+      {label: '1ª parcela', value: opts.parcela1},
+      {label: 'Taxa nominal (a.m.)', value: opts.taxaNominal},
+      {label: 'CET (a.m.)', value: opts.cet},
+    ];
+    $('pKpis').innerHTML = kpis.map(k=>
+      `<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`
+    ).join('');
 
     let dedHtml = '';
     opts.dedRows.forEach(row=>{
@@ -1228,7 +1223,15 @@
     const nCols = total <= 56 ? 1 : 2;
     const linhasPorColuna = Math.ceil(total/nCols);
 
-    const alturaDisponivelMM = opts.extra ? 191 : 203; // menos ~12mm quando há a caixa extra de KPI (Renegociação)
+    // Altura disponível para a tabela: 203mm de base (título em 1 linha + 3 linhas de
+    // quadrados, caso padrão de 5 kpis). Cada quadrado extra que empurra os kpis para
+    // uma linha a mais consome ~11mm; título mais longo (ex.: "— Renegociação") consome
+    // mais ~12mm por poder quebrar em 2 linhas.
+    const nKpiRows = Math.ceil(kpis.length/2);
+    const linhasExtrasKpi = Math.max(0, nKpiRows-3);
+    let alturaDisponivelMM = 203;
+    if(extras.length) alturaDisponivelMM -= 12;
+    alturaDisponivelMM -= linhasExtrasKpi*11;
     const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
     // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
     const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
@@ -1749,7 +1752,11 @@
       sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
       brutoLabel: 'Valor total da dívida', brutoVal: fmtBRL(r.valorTotal),
       liquidoLabel: 'Valor a financiar', liquidoVal: fmtBRL(r.valorFinanciar),
-      extra: { label: 'Valor de entrada + IOF', value: fmtBRL(r.valorEntrada + d.iof) },
+      extras: [
+        { label: 'Valor de entrada', value: fmtBRL(r.valorEntrada) },
+        { label: 'IOF (a pagar)', value: fmtBRL(d.iof) },
+        { label: 'Entrada + IOF', value: fmtBRL(r.valorEntrada + d.iof) }
+      ],
       parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
       taxaNominal: fmtPct(r.taxaMensal/100),
       cet: fmtPct(r.cetMensal),
