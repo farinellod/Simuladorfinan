@@ -6,20 +6,20 @@
 <title>Simulador de Crédito · PRICE / SAC</title>
 <style>
   :root{
-    --navy-950:#0b1220;
-    --navy-900:#101a2c;
-    --navy-800:#16233a;
-    --navy-700:#1e2f4d;
-    --navy-600:#2a3f63;
-    --line:#2a3a56;
-    --ink:#e8ecf4;
-    --ink-dim:#94a3c0;
-    --ink-faint:#5f7196;
-    --teal:#2dd4bf;
-    --teal-dim:#0f5c54;
-    --amber:#f2b544;
-    --rose:#f2637a;
-    --card:#121d30;
+    --navy-950:#f2f5f2;
+    --navy-900:#f5f7f5;
+    --navy-800:#eef2ee;
+    --navy-700:#e4e9e3;
+    --navy-600:#8a988b;
+    --line:#c9d3c8;
+    --ink:#182119;
+    --ink-dim:#48544b;
+    --ink-faint:#5f6b61;
+    --teal:#3FA110;
+    --teal-dim:#146E37;
+    --amber:#9a6300;
+    --rose:#c0293a;
+    --card:#ffffff;
     --radius:14px;
     --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
     --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -27,7 +27,7 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:radial-gradient(1200px 600px at 100% -10%, #16264a 0%, var(--navy-950) 55%), var(--navy-950);
+    background:radial-gradient(1200px 600px at 100% -10%, #e7f3dd 0%, var(--navy-950) 55%), var(--navy-950);
     color:var(--ink);
     font-family:var(--sans);
     -webkit-font-smoothing:antialiased;
@@ -38,7 +38,7 @@
   header.top{
     padding:28px 16px 20px;
     border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg, rgba(45,212,191,0.06), transparent);
+    background:linear-gradient(180deg, rgba(63,161,16,0.08), transparent);
   }
   header.top .wrap{padding:0;}
   .eyebrow{
@@ -46,7 +46,7 @@
     font-size:11px;
     letter-spacing:.14em;
     text-transform:uppercase;
-    color:var(--teal);
+    color:var(--teal-dim);
     margin:0 0 6px;
   }
   h1{font-size:22px;margin:0 0 4px;font-weight:650;letter-spacing:-0.01em;}
@@ -84,7 +84,7 @@
     padding:11px 8px;border-radius:8px;font-size:14px;font-weight:600;
     cursor:pointer;transition:all .15s ease;font-family:var(--sans);
   }
-  .seg button.active{background:var(--teal);color:#04231f;}
+  .seg button.active{background:var(--teal);color:var(--ink);font-weight:700;}
 
   .field{margin-top:14px;}
   .field label{
@@ -118,10 +118,10 @@
   }
   .slider:before{
     content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;
-    background:#cfd8ea;border-radius:50%;transition:.15s;
+    background:#ffffff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.25);
   }
   .switch input:checked + .slider{background:var(--teal-dim);}
-  .switch input:checked + .slider:before{transform:translateX(18px);background:var(--teal);}
+  .switch input:checked + .slider:before{transform:translateX(18px);background:#ffffff;}
 
   .sub-panel{
     margin-top:8px;padding-top:8px;
@@ -130,7 +130,7 @@
   .hidden{display:none !important;}
 
   .btn-primary{
-    width:100%;background:var(--teal);color:#04231f;border:none;
+    width:100%;background:var(--teal);color:var(--ink);border:none;
     padding:15px;border-radius:10px;font-size:15.5px;font-weight:700;
     cursor:pointer;letter-spacing:.01em;
   }
@@ -158,8 +158,8 @@
   }
   .kpi .k-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:700;}
   .kpi .k-value{font-family:var(--mono);font-size:18px;margin-top:4px;font-weight:600;}
-  .kpi.accent{border-color:var(--teal-dim);background:linear-gradient(180deg,rgba(45,212,191,0.08),transparent);}
-  .kpi.accent .k-value{color:var(--teal);}
+  .kpi.accent{border-color:var(--teal-dim);background:linear-gradient(180deg,rgba(63,161,16,0.08),transparent);}
+  .kpi.accent .k-value{color:var(--teal-dim);}
 
   .deduction-list{margin-top:2px;}
   .ded-row{
@@ -170,7 +170,7 @@
   .ded-row .label{color:var(--ink-dim);}
   .ded-row .val{font-family:var(--mono);}
   .ded-row.total{font-weight:700;border-top:1px solid var(--line);padding-top:11px;margin-top:2px;}
-  .ded-row.total .val{color:var(--teal);}
+  .ded-row.total .val{color:var(--teal-dim);}
   .ded-row.negative .val{color:var(--rose);}
 
   table.amort{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono);}
@@ -180,7 +180,7 @@
     border-bottom:1px solid var(--line);font-size:10.5px;text-transform:uppercase;
   }
   table.amort th:first-child, table.amort td:first-child{text-align:left;}
-  table.amort td{padding:7px 6px;text-align:right;border-bottom:1px solid #1a2740;}
+  table.amort td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);}
   table.amort tr.carencia td{color:var(--amber);}
   .table-scroll{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin-top:4px;}
 
@@ -189,10 +189,10 @@
     background:var(--navy-900);border:1px solid var(--line);color:var(--ink-dim);
     text-transform:uppercase;letter-spacing:.04em;
   }
-  .badge.on{color:var(--teal);border-color:var(--teal-dim);}
+  .badge.on{color:var(--teal-dim);border-color:var(--teal-dim);}
 
   .foot-note{font-size:11px;color:var(--ink-faint);text-align:center;margin-top:24px;line-height:1.5;}
-  a{color:var(--teal);}
+  a{color:var(--teal-dim);}
 
   .titulo-row{display:flex;gap:8px;align-items:flex-end;margin-top:10px;}
   .titulo-row:first-child{margin-top:0;}
@@ -219,6 +219,8 @@
       display:flex !important;flex-direction:column;height:283mm;overflow:hidden;
       color:#0b1220;font-family:var(--sans);
     }
+    #printSheet .p-associado{font-size:12px;font-weight:700;color:#0b1220;margin:0 0 3px;text-transform:uppercase;letter-spacing:.02em;}
+    #printSheet .p-associado:empty{display:none;}
     #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
     #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
     #printSheet .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
@@ -233,6 +235,7 @@
     #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
     #printSheet table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
     #printSheet table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
+    #printSheet table td.p-red{color:#c0392b;font-weight:800;}
     #printSheet table th:first-child, #printSheet table td:first-child,
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
@@ -248,6 +251,8 @@
     background:#fff;color:#0b1220;font-family:var(--sans);
     padding:0;z-index:-1;
   }
+  #printSheet.print-render .p-associado{font-size:12px;font-weight:700;color:#0b1220;margin:0 0 3px;text-transform:uppercase;letter-spacing:.02em;}
+  #printSheet.print-render .p-associado:empty{display:none;}
   #printSheet.print-render .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
   #printSheet.print-render .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
   #printSheet.print-render .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
@@ -262,6 +267,7 @@
   #printSheet.print-render table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
   #printSheet.print-render table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
   #printSheet.print-render table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
+  #printSheet.print-render table td.p-red{color:#c0392b;font-weight:800;}
   #printSheet.print-render table th:first-child, #printSheet.print-render table td:first-child,
   #printSheet.print-render table th:nth-child(2), #printSheet.print-render table td:nth-child(2){text-align:left;}
   #printSheet.print-render table tr.carencia td{color:#a86a00;}
@@ -290,6 +296,14 @@
       <button data-val="DESCONTO">Desconto de Títulos</button>
       <button data-val="QUITACAO">Quitação Antecipada PRICE</button>
     </div>
+  </section>
+
+  <section class="card">
+    <div class="field" style="margin-top:0;">
+      <label>Nome do associado</label>
+      <input type="text" id="nomeAssociado" placeholder="Nome completo do cliente">
+    </div>
+    <p class="hint">Aparece no topo da impressão/PDF e no início do nome do arquivo, em qualquer aba.</p>
   </section>
 
   <div id="modoEmprestimo">
@@ -730,6 +744,10 @@
             <tbody id="tabelaDescontoBody"></tbody>
           </table>
         </div>
+        <div class="btn-row">
+          <button class="btn-ghost" id="btnImprimirDesconto">Imprimir simulação</button>
+          <button class="btn-ghost" id="btnBaixarDesconto">Baixar simulação (PDF)</button>
+        </div>
       </div>
     </section>
 
@@ -842,6 +860,7 @@
        .hidden do modo inativo escondia este elemento também, deixando a impressão e o
        PDF em branco quando gerados a partir de uma aba diferente da de Empréstimo. -->
   <div id="printSheet">
+    <p class="p-associado" id="pAssociado"></p>
     <p class="p-title">Simulação de crédito <span id="pSistema"></span></p>
     <p class="p-sub" id="pSub"></p>
     <div class="p-kpis" id="pKpis"></div>
@@ -1294,6 +1313,8 @@
   // inclui o algoritmo de dimensionamento de fonte/colunas testado para caber sempre
   // em 1 folha A4 retrato, até 120 parcelas.
   function preencherFolhaImpressao(opts){
+    const nomeAssociado = ($('nomeAssociado').value || '').trim();
+    $('pAssociado').textContent = nomeAssociado;
     $('pSistema').textContent = opts.sistema;
     $('pSub').textContent = opts.sub;
 
@@ -1348,6 +1369,7 @@
     // ("— Renegociação", que pode quebrar em 2 linhas), reserva mais ~23mm.
     let alturaDisponivelMM = 203;
     if(extras.length) alturaDisponivelMM -= 23;
+    if(nomeAssociado) alturaDisponivelMM -= 6;
     const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
     // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
     const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
@@ -1370,7 +1392,7 @@
     const colunas = opts.colunas || [
       {header:'#', cell:l=>l.n},
       {header:'Data', cell:l=>fmtData(l.data)},
-      {header:'Parcela', cell:l=>l.carencia? '—' : fmtBRL(l.parcela)},
+      {header:'Parcela', cell:l=>l.carencia? '—' : fmtBRL(l.parcela), red:true},
       {header:'Juros', cell:l=>fmtBRL(l.juros)},
       {header:'Amort.', cell:l=>l.carencia? '—' : fmtBRL(l.amort)},
       {header:'Saldo', cell:l=>fmtBRL(l.saldo)},
@@ -1381,7 +1403,7 @@
       let corpo = '';
       fatia.forEach(l=>{
         corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
-          + colunas.map(col=>`<td>${col.cell(l)}</td>`).join('')
+          + colunas.map(col=>`<td${col.red?' class="p-red"':''}>${col.cell(l)}</td>`).join('')
           + `</tr>`;
       });
       colsHtml += `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
@@ -1421,6 +1443,16 @@
   });
 
   // monta o nome do arquivo: valor-prazo-seguro-carencia
+  function slugNomeAssociado(){
+    const nome = ($('nomeAssociado').value || '').trim();
+    if(!nome) return '';
+    const slug = nome
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // remove acentos
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'');
+    return slug ? slug + '-' : '';
+  }
   function nomeArquivoPDF(){
     const r = lastResult;
     // valor: usa o valor informado (bruto ou líquido) sem centavos, em milhares quando redondo
@@ -1429,7 +1461,7 @@
     const prazoStr = r.prazo + 'meses';
     const seguroStr = r.seguroAtivo ? 'comseguro' : 'semseguro';
     const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
-    return `${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+    return `${slugNomeAssociado()}${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
   }
 
   // Gera e baixa o PDF a partir do #printSheet já preenchido (reutilizável por
@@ -1605,6 +1637,8 @@
     return new Date(y, m-1, dd);
   }
 
+  let lastResultDesconto = null;
+
   function calcularDesconto(){
     const liberacao = parseDataInput($('descLiberacao')) || new Date();
     const taxaMensal = (parseFloat($('descTaxa').value)||0)/100;
@@ -1631,6 +1665,7 @@
     if(!linhas.length) return null;
 
     linhas.sort((a,b)=>a.dataVenc-b.dataVenc);
+    linhas.forEach((l,i)=>{ l.n = i+1; });
 
     const valorBordero = linhas.reduce((s,l)=>s+l.valor,0);
     const totalJuros = linhas.reduce((s,l)=>s+l.juros,0);
@@ -1673,12 +1708,58 @@
     });
     $('tabelaDescontoBody').innerHTML = tbody;
     $('descResults').classList.remove('hidden');
+
+    // ---- folha de impressão ----
+    preencherFolhaImpressao({
+      sistema: 'Desconto de Títulos',
+      sub: `Liberação em ${fmtData(r.liberacao)} · ${r.linhas.length} título(s) · Gerado em ${fmtData(new Date())}`,
+      kpis: [
+        {label:'Valor do borderô', value: fmtBRL(r.valorBordero)},
+        {label:'Valor líquido final', value: fmtBRL(r.valorLiquidoFinal)},
+        {label:'Qtd. títulos', value: String(r.linhas.length)},
+        {label:'Taxa de desconto (a.m.)', value: fmtPct((parseFloat($('descTaxa').value)||0)/100)},
+      ],
+      extras: [
+        {label:'Desconto (juros)', value: fmtBRL(r.totalJuros)},
+        {label:'IOF', value: fmtBRL(r.iofTotal)},
+        {label:'Tarifa', value: fmtBRL(r.tarifa)},
+      ],
+      dedRows: [],
+      linhas: r.linhas,
+      colunas: [
+        {header:'#', cell:l=>l.n},
+        {header:'Vencimento', cell:l=>fmtData(l.dataVenc)},
+        {header:'Dias', cell:l=>l.dias},
+        {header:'Valor', cell:l=>fmtBRL(l.valor), red:true},
+        {header:'Desconto', cell:l=>fmtBRL(l.juros)},
+        {header:'IOF', cell:l=>fmtBRL(l.iof)},
+        {header:'Valor líquido', cell:l=>fmtBRL(l.valorLiquido)},
+      ],
+    });
+
+    lastResultDesconto = r;
   }
 
   $('btnCalcularDesconto').addEventListener('click', ()=>{
     const r = calcularDesconto();
     if(!r){ alert('Adicione ao menos um título com data de vencimento e valor preenchidos.'); return; }
     renderDesconto(r);
+  });
+
+  $('btnImprimirDesconto').addEventListener('click', ()=>{
+    imprimirSimulacao(!!lastResultDesconto, ()=>$('btnCalcularDesconto').click());
+  });
+
+  function nomeArquivoPDFDesconto(){
+    const r = lastResultDesconto;
+    const valorStr = Math.round(r.valorBordero).toLocaleString('pt-BR').replace(/\./g,'');
+    const qtdStr = r.linhas.length + 'titulos';
+    return `${slugNomeAssociado()}desconto-titulos-${valorStr}-${qtdStr}.pdf`;
+  }
+  $('btnBaixarDesconto').addEventListener('click', async ()=>{
+    if(!lastResultDesconto){ $('btnCalcularDesconto').click(); }
+    if(!lastResultDesconto) return;
+    await gerarEBaixarPDF(nomeArquivoPDFDesconto(), $('btnBaixarDesconto'));
   });
 
   // inicializa com data de hoje e 1 título vazio
@@ -1907,7 +1988,7 @@
     const prazoStr = r.prazo + 'meses';
     const seguroStr = r.ded.prestamistaAtiva ? 'comseguro' : 'semseguro';
     const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
-    return `renegociacao-${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+    return `${slugNomeAssociado()}renegociacao-${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
   }
   $('btnBaixarReneg').addEventListener('click', async ()=>{
     if(!lastResultReneg){ $('btnCalcularReneg').click(); }
@@ -2054,7 +2135,7 @@
     const r = lastResultQuitacao;
     const valorStr = Math.round(r.valorFinanciado).toLocaleString('pt-BR').replace(/\./g,'');
     const prazoStr = r.prazo + 'meses';
-    return `quitacao-antecipada-price-${valorStr}-${prazoStr}.pdf`;
+    return `${slugNomeAssociado()}quitacao-antecipada-price-${valorStr}-${prazoStr}.pdf`;
   }
   $('btnBaixarQuitacao').addEventListener('click', async ()=>{
     if(!lastResultQuitacao){ $('btnCalcularQuitacao').click(); }
