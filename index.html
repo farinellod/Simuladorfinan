@@ -100,6 +100,14 @@
 
   .hint{font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.4;}
 
+  .parcelas-resumo{
+    margin:8px 0 0;padding:9px 12px;border-radius:9px;
+    background:rgba(63,161,16,0.09);border:1px solid var(--teal-dim);
+    color:var(--teal-dim);font-size:13px;font-weight:700;font-family:var(--mono);
+    line-height:1.35;
+  }
+  .parcelas-resumo:empty{display:none;}
+
   .toggle-row{
     display:flex;align-items:center;justify-content:space-between;
     padding:12px 0;
@@ -356,6 +364,7 @@
     <div class="field">
       <label>Carência (meses até o vencimento da 1ª parcela)</label>
       <input type="number" id="carencia" min="0" value="0">
+      <p class="parcelas-resumo" id="carenciaResumo"></p>
       <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação, com 54 parcelas ao todo. No PRICE, os meses de carência só capitalizam juros (sem cobrança); a partir daí a parcela é nivelada sobre o saldo já capitalizado. No SAC não há capitalização prévia — a amortização já começa na 1ª parcela, só o juros dela é maior (reflete o intervalo todo desde a liberação).</p>
     </div>
     <div class="row2">
@@ -556,6 +565,7 @@
       <div class="field">
         <label>Carência (meses até o vencimento da 1ª parcela)</label>
         <input type="number" id="renegCarencia" min="0" value="0">
+        <p class="parcelas-resumo" id="renegCarenciaResumo"></p>
       </div>
       <div class="row2">
         <div class="field" style="margin-top:0;">
@@ -911,6 +921,7 @@
     sistema=v;
     $('row-taxa-price').classList.toggle('hidden', v==='SAC');
     $('row-taxa-sac').classList.toggle('hidden', v!=='SAC');
+    atualizarResumoCarenciaEmprestimo();
   });
   bindSeg('seg-tipoValor', v=>{
     tipoValor=v;
@@ -1561,6 +1572,24 @@
   });
   autoPreencherPrimeiraParcela();
 
+  // ---- informativo "crédito em Nx + carência = total de M meses" ----
+  function textoResumoCarencia(prazo, carencia){
+    prazo = Math.max(0, Math.round(prazo)||0);
+    carencia = Math.max(0, Math.round(carencia)||0);
+    if(prazo<=0) return '';
+    const ativas = Math.max(0, prazo - carencia);
+    if(carencia<=0) return `Crédito em ${prazo}x, sem carência.`;
+    return `Crédito em ${ativas}x + ${carencia} de carência = total de ${prazo} meses.`;
+  }
+  function atualizarResumoCarenciaEmprestimo(){
+    const prazoEl = sistema==='SAC' ? $('prazoSac') : $('prazo');
+    $('carenciaResumo').textContent = textoResumoCarencia(parseFloat(prazoEl.value), parseFloat($('carencia').value));
+  }
+  $('prazo').addEventListener('input', atualizarResumoCarenciaEmprestimo);
+  $('prazoSac').addEventListener('input', atualizarResumoCarenciaEmprestimo);
+  $('carencia').addEventListener('input', atualizarResumoCarenciaEmprestimo);
+  atualizarResumoCarenciaEmprestimo();
+
   // ============================================================
   // MODO: DESCONTO DE TÍTULOS
   // ============================================================
@@ -1778,6 +1807,7 @@
     sistemaReneg = v;
     $('row-taxa-price-reneg').classList.toggle('hidden', v==='SAC');
     $('row-taxa-sac-reneg').classList.toggle('hidden', v!=='SAC');
+    atualizarResumoCarenciaReneg();
   });
 
   aplicarMascaraMoeda($('renegValorTotal'));
@@ -1828,6 +1858,16 @@
   $('renegDataPrimeiraParcela').addEventListener('change', ()=>{
     if(!$('renegDataPrimeiraParcela').value){ renegPrimeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcelaReneg(); }
   });
+
+  // ---- informativo "crédito em Nx + carência = total de M meses" (Renegociação) ----
+  function atualizarResumoCarenciaReneg(){
+    const prazoEl = sistemaReneg==='SAC' ? $('renegPrazoSac') : $('renegPrazo');
+    $('renegCarenciaResumo').textContent = textoResumoCarencia(parseFloat(prazoEl.value), parseFloat($('renegCarencia').value));
+  }
+  $('renegPrazo').addEventListener('input', atualizarResumoCarenciaReneg);
+  $('renegPrazoSac').addEventListener('input', atualizarResumoCarenciaReneg);
+  $('renegCarencia').addEventListener('input', atualizarResumoCarenciaReneg);
+  atualizarResumoCarenciaReneg();
 
   // Encargos da renegociação: mesmas fórmulas de IOF/tarifa/prestamista do empréstimo,
   // mas lendo dos campos próprios da Renegociação e SEM comissão de aval (não se aplica).
