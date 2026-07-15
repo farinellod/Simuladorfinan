@@ -51,6 +51,7 @@
   }
   h1{font-size:22px;margin:0 0 4px;font-weight:650;letter-spacing:-0.01em;}
   .sub{color:var(--ink-dim);font-size:13.5px;margin:0;}
+  .autoria{color:var(--ink-faint);font-size:11.5px;margin:6px 0 0;font-style:italic;}
 
   section{margin-top:22px;}
   .card{
@@ -240,6 +241,7 @@
     #printSheet .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
     #printSheet .p-ded span.lbl{color:#556;}
     #printSheet .p-cols{display:flex;gap:10px;align-items:flex-start;flex:1 1 auto;min-height:0;}
+    #printSheet .p-disclaimer{font-size:8px;color:#667;margin:6px 0 0;line-height:1.3;font-style:italic;flex:0 0 auto;}
     #printSheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
     #printSheet table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
     #printSheet table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
@@ -272,6 +274,7 @@
   #printSheet.print-render .p-ded{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:9.5px;margin-bottom:8px;border-top:1px solid #ccd3e0;border-bottom:1px solid #ccd3e0;padding:5px 0;}
   #printSheet.print-render .p-ded span.lbl{color:#556;}
   #printSheet.print-render .p-cols{display:flex;gap:10px;align-items:flex-start;flex:1 1 auto;min-height:0;}
+  #printSheet.print-render .p-disclaimer{font-size:8px;color:#667;margin:6px 0 0;line-height:1.3;font-style:italic;flex:0 0 auto;}
   #printSheet.print-render table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--print-fs,7px);}
   #printSheet.print-render table th{text-align:right;padding:1px 2px;border-bottom:1px solid #0b1220;font-size:calc(var(--print-fs,7px) - 0.5px);text-transform:uppercase;}
   #printSheet.print-render table td{text-align:right;padding:var(--print-pad,1px) 2px;border-bottom:1px solid #dde;line-height:1.12;}
@@ -290,6 +293,7 @@
     <p class="eyebrow">Ferramenta interna · Simulação de Crédito</p>
     <h1>Simulador PRICE / SAC</h1>
     <p class="sub">IOF, tarifa, comissão de aval (FGI/FAMPE) e prestamista — bruto ↔ líquido em segundos.</p>
+    <p class="autoria">Feita por Diego Farinello</p>
   </div>
 </header>
 
@@ -877,6 +881,7 @@
     <div class="p-extras-row" id="pExtrasRow"></div>
     <div class="p-ded" id="pDedList"></div>
     <div class="p-cols" id="pCols"></div>
+    <p class="p-disclaimer">Simulação de caráter informativo, sem valor contratual. Os valores podem sofrer alteração e estão sujeitos à aprovação de crédito e às condições vigentes no momento da contratação.</p>
   </div>
 
   <p class="foot-note">Ferramenta de apoio à simulação. Os valores finais de contrato seguem sempre o sistema oficial do banco.</p>
@@ -1381,6 +1386,7 @@
     let alturaDisponivelMM = 203;
     if(extras.length) alturaDisponivelMM -= 23;
     if(nomeAssociado) alturaDisponivelMM -= 6;
+    alturaDisponivelMM -= 10; // aviso fixo de "simulação, sem valor contratual" no rodapé
     const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
     // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
     const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
@@ -1510,7 +1516,7 @@
       let imgH = canvas.height * (imgW/canvas.width);
       if(imgH > usableH){ imgH = usableH; imgW = canvas.width * (imgH/canvas.height); }
       const x = (pageW - imgW)/2;
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, margin, imgW, imgH);
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, imgW, imgH);
       pdf.save(nomeArquivo);
       return true;
     }catch(e){
