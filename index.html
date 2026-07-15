@@ -149,6 +149,21 @@
     padding:10px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px;
   }
 
+  .btn-float-reset{
+    position:fixed;right:16px;bottom:18px;z-index:500;
+    display:flex;align-items:center;gap:7px;
+    background:var(--card);color:var(--ink-dim);border:1px solid var(--line);
+    border-radius:999px;padding:11px 16px;font-family:var(--sans);
+    font-size:13px;font-weight:700;cursor:pointer;
+    box-shadow:0 6px 18px rgba(0,0,0,.18);
+  }
+  .btn-float-reset:active{transform:scale(.96);}
+  .btn-float-reset svg{width:16px;height:16px;flex:0 0 auto;}
+  @media (max-width:380px){
+    .btn-float-reset span.label{display:none;}
+    .btn-float-reset{padding:12px;border-radius:50%;}
+  }
+
   details.adv{margin-top:14px;}
   details.adv summary{
     cursor:pointer;font-size:12.5px;color:var(--ink-faint);font-weight:600;
@@ -287,6 +302,11 @@
 </style>
 </head>
 <body>
+
+<button type="button" class="btn-float-reset" id="btnReiniciar" title="Reiniciar simulação deste modo">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 2.64 6.36"/><path d="M3 21v-6h6"/></svg>
+  <span class="label">Reiniciar</span>
+</button>
 
 <header class="top">
   <div class="wrap">
@@ -2195,6 +2215,110 @@
     autoPreencherPrimeiraParcelaQuitacao();
     $('quitDataQuitacao').value = toISODate(new Date());
   })();
+
+  // ============================================================
+  // BOTÃO FLUTUANTE: reiniciar cálculo do modo atual
+  // ============================================================
+  function segClick(segId, val){
+    const btn = $(segId).querySelector(`button[data-val="${val}"]`);
+    if(btn) btn.click();
+  }
+  function dispararChange(id){
+    $(id).dispatchEvent(new Event('change'));
+  }
+
+  function resetEmprestimo(){
+    segClick('seg-sistema','PRICE');
+    $('valorSimulacao').value = '50.000,00';
+    segClick('seg-tipoValor','BRUTO');
+    $('taxaMensal').value = '1.99';
+    $('prazo').value = '48';
+    $('taxaPre').value = '1.99';
+    $('taxaPos').value = '0';
+    $('prazoSac').value = '48';
+    $('carencia').value = '0';
+    $('dataLiberacao').value = toISODate(new Date());
+    primeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcela();
+    $('tarifaAtiva').checked = false;
+    $('comissaoAtiva').checked = false;
+    dispararChange('comissaoAtiva');
+    segClick('seg-fundo','FGI');
+    $('prestamistaAtiva').checked = false;
+    dispararChange('prestamistaAtiva');
+    $('prestamistaNascimento').value = '';
+    $('iofFixo').value = '0.38';
+    $('iofDiario').value = '0.0082';
+    const adv = document.querySelector('#modoEmprestimo details.adv');
+    if(adv) adv.removeAttribute('open');
+    atualizarResumoCarenciaEmprestimo();
+    $('results').classList.add('hidden');
+    lastResult = null;
+  }
+
+  function resetReneg(){
+    segClick('seg-sistema-reneg','PRICE');
+    $('renegValorTotal').value = '0,00';
+    $('renegValorEntrada').value = '0,00';
+    atualizarValorFinanciar();
+    $('renegTaxaMensal').value = '1.99';
+    $('renegPrazo').value = '48';
+    $('renegTaxaPre').value = '1.99';
+    $('renegTaxaPos').value = '0';
+    $('renegPrazoSac').value = '48';
+    $('renegCarencia').value = '0';
+    $('renegDataLiberacao').value = toISODate(new Date());
+    renegPrimeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcelaReneg();
+    $('renegTarifaAtiva').checked = false;
+    $('renegPrestamistaAtiva').checked = false;
+    dispararChange('renegPrestamistaAtiva');
+    $('renegPrestamistaNascimento').value = '';
+    atualizarResumoCarenciaReneg();
+    $('resultsReneg').classList.add('hidden');
+    lastResultReneg = null;
+  }
+
+  function resetDesconto(){
+    $('descLiberacao').value = toISODate(new Date());
+    $('descTaxa').value = '1.49';
+    $('descTarifa').value = '40,00';
+    $('descPessoa').value = 'PJ';
+    segClick('seg-intervalo','LIVRE');
+    $('descTitulosLista').innerHTML = '';
+    addTituloRow();
+    $('descResults').classList.add('hidden');
+    lastResultDesconto = null;
+  }
+
+  function resetQuitacao(){
+    $('quitValorFinanciado').value = '0,00';
+    $('quitTaxaMensal').value = '1.99';
+    $('quitDataLiberacao').value = toISODate(new Date());
+    quitPrimeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcelaQuitacao();
+    $('quitPrazo').value = '48';
+    $('quitDataQuitacao').value = toISODate(new Date());
+    $('resultsQuitacao').classList.add('hidden');
+    lastResultQuitacao = null;
+  }
+
+  const RESET_POR_MODO = {
+    EMPRESTIMO: { fn: resetEmprestimo, nome: 'Empréstimo' },
+    RENEGOCIACAO: { fn: resetReneg, nome: 'Renegociação' },
+    DESCONTO: { fn: resetDesconto, nome: 'Desconto de Títulos' },
+    QUITACAO: { fn: resetQuitacao, nome: 'Quitação Antecipada' },
+  };
+
+  $('btnReiniciar').addEventListener('click', ()=>{
+    const modoBtn = $('seg-modo').querySelector('button.active');
+    const modo = modoBtn ? modoBtn.dataset.val : 'EMPRESTIMO';
+    const cfg = RESET_POR_MODO[modo];
+    if(!cfg) return;
+    if(!confirm(`Reiniciar a simulação de "${cfg.nome}"? Os dados preenchidos nesta aba serão apagados.`)) return;
+    cfg.fn();
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
 })();
 </script>
 </body>
