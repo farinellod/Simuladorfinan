@@ -1589,9 +1589,26 @@
     const meses = Math.max(car, 1); // carência 0 → 1 mês; carência N → N meses
     $('dataPrimeiraParcela').value = toISODate(addMonths(lib, meses));
   }
-  $('dataLiberacao').addEventListener('change', autoPreencherPrimeiraParcela);
-  $('carencia').addEventListener('input', autoPreencherPrimeiraParcela);
-  $('dataPrimeiraParcela').addEventListener('input', ()=>{ primeiraParcelaEditadaManualmente = true; });
+  // recalcula a data prevista para a config atual (carência/liberação), sem depender da trava manual
+  function dataPrimeiraParcelaPrevista(){
+    const lib = parseDataLiberacao();
+    const car = Math.max(0, Math.round(parseFloat($('carencia').value)||0));
+    const meses = Math.max(car, 1);
+    return toISODate(addMonths(lib, meses));
+  }
+  $('dataLiberacao').addEventListener('change', ()=>{
+    primeiraParcelaEditadaManualmente = false; // nova liberação = nova previsão, mesmo se a data tinha sido travada antes
+    autoPreencherPrimeiraParcela();
+  });
+  $('carencia').addEventListener('input', ()=>{
+    primeiraParcelaEditadaManualmente = false; // nova carência = nova previsão, mesmo se a data tinha sido travada antes
+    autoPreencherPrimeiraParcela();
+  });
+  $('dataPrimeiraParcela').addEventListener('input', ()=>{
+    // só trava como "edição manual" se o valor realmente diverge do que seria calculado automaticamente
+    // (evita que um toque/evento acidental no campo prenda a data para sempre)
+    primeiraParcelaEditadaManualmente = ($('dataPrimeiraParcela').value !== dataPrimeiraParcelaPrevista());
+  });
   // botão para voltar ao automático caso o usuário limpe o campo
   $('dataPrimeiraParcela').addEventListener('change', ()=>{
     if(!$('dataPrimeiraParcela').value){ primeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcela(); }
@@ -1878,9 +1895,23 @@
     const meses = Math.max(car, 1);
     $('renegDataPrimeiraParcela').value = toISODate(addMonths(lib, meses));
   }
-  $('renegDataLiberacao').addEventListener('change', autoPreencherPrimeiraParcelaReneg);
-  $('renegCarencia').addEventListener('input', autoPreencherPrimeiraParcelaReneg);
-  $('renegDataPrimeiraParcela').addEventListener('input', ()=>{ renegPrimeiraParcelaEditadaManualmente = true; });
+  function dataPrimeiraParcelaRenegPrevista(){
+    const lib = parseDataRenegLiberacao();
+    const car = Math.max(0, Math.round(parseFloat($('renegCarencia').value)||0));
+    const meses = Math.max(car, 1);
+    return toISODate(addMonths(lib, meses));
+  }
+  $('renegDataLiberacao').addEventListener('change', ()=>{
+    renegPrimeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcelaReneg();
+  });
+  $('renegCarencia').addEventListener('input', ()=>{
+    renegPrimeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcelaReneg();
+  });
+  $('renegDataPrimeiraParcela').addEventListener('input', ()=>{
+    renegPrimeiraParcelaEditadaManualmente = ($('renegDataPrimeiraParcela').value !== dataPrimeiraParcelaRenegPrevista());
+  });
   $('renegDataPrimeiraParcela').addEventListener('change', ()=>{
     if(!$('renegDataPrimeiraParcela').value){ renegPrimeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcelaReneg(); }
   });
@@ -2094,8 +2125,17 @@
     const lib = parseDataQuitCampo('quitDataLiberacao') || new Date();
     $('quitDataPrimeiraParcela').value = toISODate(addMonths(lib, 1));
   }
-  $('quitDataLiberacao').addEventListener('change', autoPreencherPrimeiraParcelaQuitacao);
-  $('quitDataPrimeiraParcela').addEventListener('input', ()=>{ quitPrimeiraParcelaEditadaManualmente = true; });
+  function dataPrimeiraParcelaQuitPrevista(){
+    const lib = parseDataQuitCampo('quitDataLiberacao') || new Date();
+    return toISODate(addMonths(lib, 1));
+  }
+  $('quitDataLiberacao').addEventListener('change', ()=>{
+    quitPrimeiraParcelaEditadaManualmente = false;
+    autoPreencherPrimeiraParcelaQuitacao();
+  });
+  $('quitDataPrimeiraParcela').addEventListener('input', ()=>{
+    quitPrimeiraParcelaEditadaManualmente = ($('quitDataPrimeiraParcela').value !== dataPrimeiraParcelaQuitPrevista());
+  });
   $('quitDataPrimeiraParcela').addEventListener('change', ()=>{
     if(!$('quitDataPrimeiraParcela').value){ quitPrimeiraParcelaEditadaManualmente = false; autoPreencherPrimeiraParcelaQuitacao(); }
   });
