@@ -2145,6 +2145,16 @@
     if(p>120){ $('quitPrazo').value = 120; }
   });
 
+  // contagem de dias na convenção bancária 30/360 (cada mês = 30 dias "cheios"),
+  // usada apenas no desconto da quitação antecipada, para bater com o sistema oficial.
+  function dias30_360(d1, d2){
+    let d1d = d1.getDate(), d1m = d1.getMonth()+1, d1y = d1.getFullYear();
+    let d2d = d2.getDate(), d2m = d2.getMonth()+1, d2y = d2.getFullYear();
+    if(d1d === 31) d1d = 30;
+    if(d2d === 31 && d1d === 30) d2d = 30;
+    return (d2y-d1y)*360 + (d2m-d1m)*30 + (d2d-d1d);
+  }
+
   function calcularQuitacao(){
     const valorFinanciado = parseMoeda($('quitValorFinanciado'));
     const taxaMensal = parseFloat($('quitTaxaMensal').value)||0;
@@ -2167,7 +2177,7 @@
         valorQuitacao = l.parcela;
         qtdVencidas++;
       } else {
-        const dias = Math.round((l.data - dataQuitacao)/86400000);
+        const dias = dias30_360(dataQuitacao, l.data);
         valorQuitacao = i===0 ? l.parcela : l.parcela / Math.pow(1+i, dias/30);
         economiaTotal += (l.parcela - valorQuitacao);
       }
@@ -2292,7 +2302,7 @@
     const adv = document.querySelector('#modoEmprestimo details.adv');
     if(adv) adv.removeAttribute('open');
     atualizarResumoCarenciaEmprestimo();
-    $('results').classList.add('hidden');
+    $('results').style.display = 'none';
     lastResult = null;
   }
 
