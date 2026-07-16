@@ -164,6 +164,9 @@
     .btn-float-reset{padding:12px;border-radius:50%;}
   }
 
+  #tabelaQuitacao th:first-child, #tabelaQuitacao td:first-child{width:44px;text-align:center;}
+  #tabelaQuitacao input[type="checkbox"]{width:17px;height:17px;cursor:pointer;}
+
   details.adv{margin-top:14px;}
   details.adv summary{
     cursor:pointer;font-size:12.5px;color:var(--ink-faint);font-weight:600;
@@ -857,6 +860,10 @@
 
       <div class="card">
         <p class="card-title">Se quitar tudo na data informada</p>
+        <div class="seg" id="seg-quitSelecao" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
+          <button type="button" data-val="AVENCER" class="active">Somente a vencer</button>
+          <button type="button" data-val="TODAS">Todas</button>
+        </div>
         <div class="kpi-grid">
           <div class="kpi accent">
             <div class="k-label">Total para quitação hoje</div>
@@ -867,7 +874,7 @@
             <div class="k-value" id="quitOutEconomia">—</div>
           </div>
         </div>
-        <p class="hint">Soma de: parcelas já vencidas pelo valor cheio + parcelas a vencer pelo valor de quitação (descontado).</p>
+        <p class="hint">Marque/desmarque parcelas na tabela abaixo para incluir ou excluir do total. Por padrão, só as parcelas a vencer entram na conta — as já vencidas ficam de fora.</p>
       </div>
 
       <div class="card">
@@ -875,7 +882,7 @@
         <div class="table-scroll">
           <table class="amort" id="tabelaQuitacao">
             <thead>
-              <tr><th>#</th><th>Data</th><th>Parcela</th><th>Valor de quitação</th><th>Situação</th></tr>
+              <tr><th>Incluir</th><th>#</th><th>Data</th><th>Parcela</th><th>Valor de quitação</th><th>Situação</th></tr>
             </thead>
             <tbody id="tabelaQuitacaoBody"></tbody>
           </table>
@@ -2145,16 +2152,6 @@
     if(p>120){ $('quitPrazo').value = 120; }
   });
 
-  // contagem de dias na convenção bancária 30/360 (cada mês = 30 dias "cheios"),
-  // usada apenas no desconto da quitação antecipada, para bater com o sistema oficial.
-  function dias30_360(d1, d2){
-    let d1d = d1.getDate(), d1m = d1.getMonth()+1, d1y = d1.getFullYear();
-    let d2d = d2.getDate(), d2m = d2.getMonth()+1, d2y = d2.getFullYear();
-    if(d1d === 31) d1d = 30;
-    if(d2d === 31 && d1d === 30) d2d = 30;
-    return (d2y-d1y)*360 + (d2m-d1m)*30 + (d2d-d1d);
-  }
-
   function calcularQuitacao(){
     const valorFinanciado = parseMoeda($('quitValorFinanciado'));
     const taxaMensal = parseFloat($('quitTaxaMensal').value)||0;
@@ -2169,6 +2166,12 @@
     const linhasBase = gerarTabela(valorFinanciado, taxaMensal, prazo, 0, 'PRICE', dataLiberacao, dataPrimeira);
     const i = taxaMensal/100;
 
+    // referência para o desconto de antecipação: o sistema oficial NÃO conta os dias
+    // até a data "de calendário" da parcela (24/01, 24/02...); ele usa blocos fixos de
+    // 30 dias corridos a partir da 1ª parcela (parcela m = 1ª parcela + 30×(m-1) dias).
+    // A data exibida na tabela continua sendo a de calendário — só o desconto muda.
+    const dataBase30 = linhasBase.length ? linhasBase[0].data : dataLiberacao;
+
     let economiaTotal = 0, totalQuitacaoGeral = 0, qtdVencidas = 0;
     const linhas = linhasBase.map(l=>{
       const jaVencida = l.data <= dataQuitacao;
@@ -2177,7 +2180,8 @@
         valorQuitacao = l.parcela;
         qtdVencidas++;
       } else {
-        const dias = dias30_360(dataQuitacao, l.data);
+        const dataRef30 = new Date(dataBase30.getTime() + (l.n-1)*30*86400000);
+        const dias = Math.round((dataRef30 - dataQuitacao)/86400000);
         valorQuitacao = i===0 ? l.parcela : l.parcela / Math.pow(1+i, dias/30);
         economiaTotal += (l.parcela - valorQuitacao);
       }
@@ -2188,27 +2192,20 @@
     return { valorFinanciado, taxaMensal, dataLiberacao, dataPrimeira, prazo, dataQuitacao, linhas, economiaTotal, totalQuitacaoGeral, qtdVencidas };
   }
 
-  function renderQuitacao(r){
-    $('quitOutFinanciado').textContent = fmtBRL(r.valorFinanciado);
-    $('quitOutPrazo').textContent = r.prazo + ' meses';
-    $('quitOutTaxa').textContent = fmtPct(r.taxaMensal/100);
-    $('quitOutDataQuitacao').textContent = fmtData(r.dataQuitacao);
-    $('quitOutTotalGeral').textContent = fmtBRL(r.totalQuitacaoGeral);
-    $('quitOutEconomia').textContent = fmtBRL(r.economiaTotal);
+  // conjunto com os números das parcelas atualmente incluídas no total de quitação.
+  let quitSelecao = new Set();
 
-    let tbody = '';
+  function totalSelecionadoQuitacao(r){
+    let total = 0, economia = 0;
     r.linhas.forEach(l=>{
-      tbody += `<tr class="${l.jaVencida?'carencia':''}">
-        <td>${l.n}</td>
-        <td>${fmtData(l.data)}</td>
-        <td>${fmtBRL(l.parcela)}</td>
-        <td>${fmtBRL(l.valorQuitacao)}</td>
-        <td>${l.jaVencida?'Vencida':'A vencer'}</td>
-      </tr>`;
+      if(!quitSelecao.has(l.n)) return;
+      if(l.jaVencida){ total += l.parcela; }
+      else { total += l.valorQuitacao; economia += (l.parcela - l.valorQuitacao); }
     });
-    $('tabelaQuitacaoBody').innerHTML = tbody;
-    $('resultsQuitacao').classList.remove('hidden');
+    return { total, economia };
+  }
 
+  function montarExtrasImpressaoQuitacao(r, total, economia){
     preencherFolhaImpressao({
       sistema: 'PRICE — Quitação Antecipada',
       sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses · Quitação em ${fmtData(r.dataQuitacao)} · Gerado em ${fmtData(new Date())}`,
@@ -2219,9 +2216,9 @@
         {label:'Data de quitação', value: fmtData(r.dataQuitacao)},
       ],
       extras: [
-        {label:'Total para quitação hoje', value: fmtBRL(r.totalQuitacaoGeral)},
-        {label:'Economia com antecipação', value: fmtBRL(r.economiaTotal)},
-        {label:'Parcelas já vencidas', value: String(r.qtdVencidas)},
+        {label:'Total para quitação hoje', value: fmtBRL(total)},
+        {label:'Economia com antecipação', value: fmtBRL(economia)},
+        {label:'Parcelas incluídas no total', value: `${quitSelecao.size} de ${r.linhas.length}`},
       ],
       dedRows: [],
       linhas: r.linhas,
@@ -2233,8 +2230,59 @@
         {header:'Situação', cell:l=>l.jaVencida?'Vencida':'A vencer'},
       ],
     });
+  }
+
+  function atualizarTotaisQuitacao(){
+    const r = lastResultQuitacao;
+    if(!r) return;
+    const { total, economia } = totalSelecionadoQuitacao(r);
+    $('quitOutTotalGeral').textContent = fmtBRL(total);
+    $('quitOutEconomia').textContent = fmtBRL(economia);
+    montarExtrasImpressaoQuitacao(r, total, economia);
+  }
+
+  bindSeg('seg-quitSelecao', v=>{
+    const r = lastResultQuitacao;
+    if(!r) return;
+    quitSelecao = new Set(
+      v==='TODAS' ? r.linhas.map(l=>l.n) : r.linhas.filter(l=>!l.jaVencida).map(l=>l.n)
+    );
+    document.querySelectorAll('#tabelaQuitacaoBody .quit-sel-check').forEach(cb=>{
+      cb.checked = quitSelecao.has(parseInt(cb.dataset.n,10));
+    });
+    atualizarTotaisQuitacao();
+  });
+
+  $('tabelaQuitacaoBody').addEventListener('change', e=>{
+    if(!e.target.classList.contains('quit-sel-check')) return;
+    const n = parseInt(e.target.dataset.n, 10);
+    if(e.target.checked) quitSelecao.add(n); else quitSelecao.delete(n);
+    atualizarTotaisQuitacao();
+  });
+
+  function renderQuitacao(r){
+    $('quitOutFinanciado').textContent = fmtBRL(r.valorFinanciado);
+    $('quitOutPrazo').textContent = r.prazo + ' meses';
+    $('quitOutTaxa').textContent = fmtPct(r.taxaMensal/100);
+    $('quitOutDataQuitacao').textContent = fmtData(r.dataQuitacao);
 
     lastResultQuitacao = r;
+    segClick('seg-quitSelecao','AVENCER'); // padrão: só as parcelas a vencer entram no total
+
+    let tbody = '';
+    r.linhas.forEach(l=>{
+      const marcado = quitSelecao.has(l.n);
+      tbody += `<tr class="${l.jaVencida?'carencia':''}">
+        <td><input type="checkbox" class="quit-sel-check" data-n="${l.n}" ${marcado?'checked':''}></td>
+        <td>${l.n}</td>
+        <td>${fmtData(l.data)}</td>
+        <td>${fmtBRL(l.parcela)}</td>
+        <td>${fmtBRL(l.valorQuitacao)}</td>
+        <td>${l.jaVencida?'Vencida':'A vencer'}</td>
+      </tr>`;
+    });
+    $('tabelaQuitacaoBody').innerHTML = tbody;
+    $('resultsQuitacao').classList.remove('hidden');
   }
 
   $('btnCalcularQuitacao').addEventListener('click', ()=>{
