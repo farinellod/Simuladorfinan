@@ -243,7 +243,7 @@
     body{background:#fff !important;color:#0b1220 !important;padding:0;}
     header.top, .wrap section.card, #btnCalcular, #btnCalcularReneg, #btnCalcularDesconto, details.adv, .foot-note, #results, #resultsReneg, #descResults{display:none !important;}
     #printSheet{
-      display:flex !important;flex-direction:column;height:283mm;overflow:hidden;
+      display:flex !important;flex-direction:column;height:auto;
       color:#0b1220;font-family:var(--sans);
     }
     #printSheet .p-associado{font-size:12px;font-weight:700;color:#0b1220;margin:0 0 3px;text-transform:uppercase;letter-spacing:.02em;}
@@ -267,6 +267,8 @@
     #printSheet table th:first-child, #printSheet table td:first-child,
     #printSheet table th:nth-child(2), #printSheet table td:nth-child(2){text-align:left;}
     #printSheet table tr.carencia td{color:#a86a00;}
+    #printSheet table thead{display:table-header-group;}
+    #printSheet table tr{page-break-inside:avoid;break-inside:avoid;}
     #printSheet .p-cols table{flex:1 1 0;break-inside:avoid;}
     #printSheet .p-cols table:not(:first-child){border-left:1px solid #b9c2d4;padding-left:10px;}
   }
@@ -411,10 +413,15 @@
   <section class="card">
     <p class="card-title">Encargos sobre a operação</p>
 
-    <div class="toggle-row">
-      <div>
-        <div class="tlabel">IOF (PJ)</div>
+    <div class="toggle-row" style="align-items:flex-start;">
+      <div style="flex:1;">
+        <div class="tlabel" id="iofPessoaLabel">IOF (PJ)</div>
         <div class="tdesc">Sempre calculado — fixo + diário, teto 365 dias.</div>
+        <div class="seg" id="seg-iofPessoa" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <button type="button" data-val="PF">PF</button>
+          <button type="button" data-val="PJ" class="active">PJ</button>
+          <button type="button" data-val="PJSIMPLES">PJ Simples</button>
+        </div>
       </div>
       <span class="badge on">Automático</span>
     </div>
@@ -530,7 +537,7 @@
           <input type="number" id="iofDiario" step="0.0001" value="0.0082">
         </div>
       </div>
-      <p class="hint">Padrão de mercado vigente para PJ (0,38% fixo sobre o bruto + 0,0082% a.d.). O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
+      <p class="hint">O seletor acima preenche o fixo e o diário automaticamente (PF/PJ: 0,38% + 0,0082% a.d. · PJ Simples Nacional: 0,38% + 0,00274% a.d.) — ainda editáveis na mão se precisar. O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
     </div>
   </details>
 
@@ -962,6 +969,20 @@
       : 'Valor líquido = valor que o cliente efetivamente recebe na conta. O bruto é calculado a partir daqui.';
   });
   bindSeg('seg-fundo', v=>{ fundo=v; updateFundoHint(); });
+
+  const IOF_POR_PESSOA = {
+    PF:        { fixo: '0.38', diario: '0.0082'  },
+    PJ:        { fixo: '0.38', diario: '0.0082'  },
+    PJSIMPLES: { fixo: '0.38', diario: '0.00274' },
+  };
+  const IOF_PESSOA_LABEL = { PF:'IOF (PF)', PJ:'IOF (PJ)', PJSIMPLES:'IOF (PJ Simples)' };
+  bindSeg('seg-iofPessoa', v=>{
+    const cfg = IOF_POR_PESSOA[v];
+    if(!cfg) return;
+    $('iofFixo').value = cfg.fixo;
+    $('iofDiario').value = cfg.diario;
+    $('iofPessoaLabel').textContent = IOF_PESSOA_LABEL[v] || 'IOF';
+  });
 
   function updateFundoHint(){
     const hints = {
@@ -1399,31 +1420,12 @@
 
     const linhas = opts.linhas;
     const total = linhas.length;
-    // 1 coluna quando cabe folgado; 2 colunas para tabelas maiores. Nunca mais de 2
-    // (mantém legível). O tamanho da fonte é calculado por busca binária para preencher
-    // a altura da folha sem estourar — testado com até 120 parcelas (motor de renderização
-    // CSS real), sobra de ~25mm até no caso mais apertado.
-    const nCols = total <= 56 ? 1 : 2;
-    const linhasPorColuna = Math.ceil(total/nCols);
-
-    // Altura disponível para a tabela: 203mm de base, calibrada para o caso padrão
-    // (título em 1 linha + 2 linhas de quadrados principais). Quando há a faixa extra
-    // de 3 quadradinhos (Renegociação: Entrada/IOF/Soma) + título mais longo
-    // ("— Renegociação", que pode quebrar em 2 linhas), reserva mais ~23mm.
-    let alturaDisponivelMM = 203;
-    if(extras.length) alturaDisponivelMM -= 23;
-    if(nomeAssociado) alturaDisponivelMM -= 6;
-    alturaDisponivelMM -= 10; // aviso fixo de "simulação, sem valor contratual" no rodapé
-    const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
-    // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
-    const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
-    const nLinhasComCabecalho = linhasPorColuna + 1; // +1 pela linha de cabeçalho da tabela
-    let lo = 5.5, hi = 12;
-    for(let k=0; k<40; k++){
-      const mid = (lo+hi)/2;
-      if(nLinhasComCabecalho*alturaLinha(mid) <= alturaDisponivelPX) lo = mid; else hi = mid;
-    }
-    const fs = lo;
+    // Sempre 1 coluna (nunca divide em duas colunas lado a lado), com fonte fixa e
+    // legível. Antes o código tentava espremer tudo numa única página de PDF (por isso
+    // dividia em 2 colunas para tabelas grandes); agora o PDF pagina automaticamente
+    // (ver gerarEBaixarPDF), então a tabela pode crescer normalmente e continuar na
+    // página seguinte, com o cabeçalho de novo no topo de cada página.
+    const fs = total <= 40 ? 8.5 : (total <= 70 ? 8 : 7.5);
     const pad = Math.max(0.5, fs*0.22);
     const sheet = $('printSheet');
     sheet.style.setProperty('--print-fs', fs.toFixed(2)+'px');
@@ -1441,17 +1443,13 @@
       {header:'Amort.', cell:l=>l.carencia? '—' : fmtBRL(l.amort)},
       {header:'Saldo', cell:l=>fmtBRL(l.saldo)},
     ];
-    for(let c=0; c<nCols; c++){
-      const fatia = linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
-      if(!fatia.length) continue;
-      let corpo = '';
-      fatia.forEach(l=>{
-        corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
-          + colunas.map(col=>`<td${col.red?' class="p-red"':''}>${col.cell(l)}</td>`).join('')
-          + `</tr>`;
-      });
-      colsHtml += `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
-    }
+    let corpo = '';
+    linhas.forEach(l=>{
+      corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
+        + colunas.map(col=>`<td${col.red?' class="p-red"':''}>${col.cell(l)}</td>`).join('')
+        + `</tr>`;
+    });
+    colsHtml = `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
     $('pCols').innerHTML = colsHtml;
   }
 
@@ -1527,6 +1525,19 @@
       // largura fixa em px (196mm a 96dpi) — evita ambiguidade de scrollWidth em
       // elemento fora da tela (position:fixed; left:-9999px)
       const larguraPx = Math.round(196 * 3.7795);
+
+      // posição (em px CSS, relativa ao topo da folha) de cada linha da tabela —
+      // usado depois pra cortar a página exatamente entre duas linhas, nunca no meio de uma.
+      const sheetRect = sheet.getBoundingClientRect();
+      const linhasTabela = Array.from(sheet.querySelectorAll('#pCols table tbody tr'));
+      const linhasPos = linhasTabela.map(tr=>{
+        const r = tr.getBoundingClientRect();
+        return { top: r.top - sheetRect.top, bottom: r.bottom - sheetRect.top };
+      });
+      // cabeçalho da tabela (#, Data, Parcela...) — repetido no topo das páginas 2+
+      const theadEl = sheet.querySelector('#pCols table thead');
+      const theadRectCss = theadEl ? (()=>{ const r = theadEl.getBoundingClientRect(); return { top: r.top-sheetRect.top, bottom: r.bottom-sheetRect.top }; })() : null;
+
       const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: larguraPx, width: larguraPx});
       sheet.classList.remove('print-render');
 
@@ -1539,11 +1550,78 @@
       const pageW = 210, pageH = 297, margin = 7;
       const usableW = pageW - margin*2;
       const usableH = pageH - margin*2;
-      let imgW = usableW;
-      let imgH = canvas.height * (imgW/canvas.width);
-      if(imgH > usableH){ imgH = usableH; imgW = canvas.width * (imgH/canvas.height); }
-      const x = (pageW - imgW)/2;
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, imgW, imgH);
+      const imgW = usableW;
+      const scale = imgW / canvas.width; // mm por pixel do canvas, na largura já ajustada
+      const usableHpx = Math.floor(usableH / scale); // altura de 1 página, em pixels do canvas
+      const cssParaCanvasPx = canvas.width / larguraPx; // fator de conversão px CSS → px do canvas
+      const theadTopPx = theadRectCss ? theadRectCss.top*cssParaCanvasPx : 0;
+      const theadAlturaPx = theadRectCss ? Math.round((theadRectCss.bottom-theadRectCss.top)*cssParaCanvasPx) : 0;
+
+      function desenharPagina(offsetYpx, alturaPx, primeira, repetirCabecalho){
+        const comCabecalho = repetirCabecalho && theadAlturaPx>0;
+        const alturaTotal = alturaPx + (comCabecalho? theadAlturaPx : 0);
+        const fatiaCanvas = document.createElement('canvas');
+        fatiaCanvas.width = canvas.width;
+        fatiaCanvas.height = alturaTotal;
+        const ctx = fatiaCanvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, fatiaCanvas.width, fatiaCanvas.height);
+        let destY = 0;
+        if(comCabecalho){
+          ctx.drawImage(canvas, 0, theadTopPx, canvas.width, theadAlturaPx, 0, 0, canvas.width, theadAlturaPx);
+          destY = theadAlturaPx;
+        }
+        ctx.drawImage(canvas, 0, offsetYpx, canvas.width, alturaPx, 0, destY, canvas.width, alturaPx);
+        if(!primeira) pdf.addPage();
+        const imgH = alturaTotal * scale;
+        const x = (pageW - imgW)/2;
+        pdf.addImage(fatiaCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, imgW, imgH);
+      }
+
+      if(canvas.height <= usableHpx){
+        // cabe tudo numa página só — comportamento de sempre
+        desenharPagina(0, canvas.height, true, false);
+      } else if(!linhasPos.length){
+        // sem tabela de linhas pra guiar o corte (não deveria acontecer) — fatia no pixel mesmo
+        let offsetY = 0, primeira = true;
+        while(offsetY < canvas.height){
+          const altura = Math.min(usableHpx, canvas.height - offsetY);
+          desenharPagina(offsetY, altura, primeira, !primeira);
+          offsetY += altura; primeira = false;
+        }
+      } else {
+        // fatia respeitando as linhas da tabela: cada página vai até o fim da última
+        // linha que couber inteira; a próxima começa exatamente no início da linha seguinte,
+        // repetindo o cabeçalho da tabela no topo (por isso o orçamento de altura da página
+        // encolhe pela altura do cabeçalho a partir da 2ª página).
+        let offsetY = 0, primeira = true;
+        let i = 0;
+        while(offsetY < canvas.height){
+          const orcamentoPagina = primeira ? usableHpx : Math.max(1, usableHpx - theadAlturaPx);
+          const limite = offsetY + orcamentoPagina;
+          let corte = Math.min(canvas.height, limite);
+          // avança até a última linha cujo fim ainda cabe dentro do limite da página
+          let ultimaQueCoube = -1;
+          while(i < linhasPos.length && linhasPos[i].bottom*cssParaCanvasPx <= limite){
+            ultimaQueCoube = i;
+            i++;
+          }
+          if(ultimaQueCoube >= 0 && linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx > offsetY){
+            corte = linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx;
+          }
+          // se já processou todas as linhas e o que sobra (ex.: aviso de rodapé) cabe
+          // no espaço que ainda resta nesta página, não cria uma página extra só pra isso.
+          if(i >= linhasPos.length && (canvas.height - offsetY) <= orcamentoPagina){
+            corte = canvas.height;
+          }
+          // evita loop infinito caso uma única linha seja mais alta que a página inteira
+          if(corte <= offsetY) corte = limite;
+          const altura = Math.min(corte, canvas.height) - offsetY;
+          desenharPagina(offsetY, altura, primeira, !primeira);
+          offsetY += altura; primeira = false;
+        }
+      }
+
       pdf.save(nomeArquivo);
       return true;
     }catch(e){
@@ -2345,6 +2423,7 @@
     $('prestamistaAtiva').checked = false;
     dispararChange('prestamistaAtiva');
     $('prestamistaNascimento').value = '';
+    segClick('seg-iofPessoa','PJ');
     $('iofFixo').value = '0.38';
     $('iofDiario').value = '0.0082';
     const adv = document.querySelector('#modoEmprestimo details.adv');
