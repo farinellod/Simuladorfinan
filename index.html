@@ -370,8 +370,8 @@
         <input type="number" id="taxaMensal" step="0.01" value="1.99">
       </div>
       <div class="field" style="margin-top:0;">
-        <label>Prazo total (meses, máx. 120)</label>
-        <input type="number" id="prazo" max="120" min="1" value="48">
+        <label>Prazo total (meses, máx. 180)</label>
+        <input type="number" id="prazo" max="180" min="1" value="48">
       </div>
     </div>
     <div class="hidden" id="row-taxa-sac">
@@ -387,8 +387,8 @@
       </div>
       <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
       <div class="field">
-        <label>Prazo total (meses, máx. 120)</label>
-        <input type="number" id="prazoSac" max="120" min="1" value="48">
+        <label>Prazo total (meses, máx. 180)</label>
+        <input type="number" id="prazoSac" max="180" min="1" value="48">
       </div>
     </div>
     <div class="field">
@@ -576,8 +576,8 @@
           <input type="number" id="renegTaxaMensal" step="0.01" value="1.99">
         </div>
         <div class="field" style="margin-top:0;">
-          <label>Prazo total (meses, máx. 120)</label>
-          <input type="number" id="renegPrazo" max="120" min="1" value="48">
+          <label>Prazo total (meses, máx. 180)</label>
+          <input type="number" id="renegPrazo" max="180" min="1" value="48">
         </div>
       </div>
       <div class="hidden" id="row-taxa-sac-reneg">
@@ -593,8 +593,8 @@
         </div>
         <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
         <div class="field">
-          <label>Prazo total (meses, máx. 120)</label>
-          <input type="number" id="renegPrazoSac" max="120" min="1" value="48">
+          <label>Prazo total (meses, máx. 180)</label>
+          <input type="number" id="renegPrazoSac" max="180" min="1" value="48">
         </div>
       </div>
       <div class="field">
@@ -1358,7 +1358,7 @@
     let prazo = Math.round(parseFloat((sistema==='SAC' ? $('prazoSac') : $('prazo')).value)||1);
     let carencia = Math.round(parseFloat($('carencia').value)||0);
 
-    prazo = Math.min(120, Math.max(1,prazo));
+    prazo = Math.min(180, Math.max(1,prazo));
     carencia = Math.max(0, Math.min(carencia, prazo-1));
 
     const dataLiberacao = parseDataLiberacao();
@@ -1448,9 +1448,10 @@
     });
   }
 
-  // Preenche a #printSheet (usada tanto pelo Empréstimo quanto pela Renegociação) —
-  // inclui o algoritmo de dimensionamento de fonte/colunas testado para caber sempre
-  // em 1 folha A4 retrato, até 120 parcelas.
+  // Preenche a #printSheet (usada pelos 4 modos) — inclui o algoritmo de dimensionamento
+  // de fonte/colunas testado para caber numa única folha A4 retrato até 120 parcelas.
+  // Empréstimo e Renegociação aceitam prazo até 180 meses: acima de 120, a tabela deixa de
+  // caber numa folha só e a impressão/PDF continua normalmente na página seguinte.
   function preencherFolhaImpressao(opts){
     const nomeAssociado = ($('nomeAssociado').value || '').trim();
     $('pAssociado').textContent = nomeAssociado;
@@ -1744,7 +1745,7 @@
   ['prazo','prazoSac'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
       let p = Math.round(parseFloat($(id).value)||1);
-      if(p>120){ $(id).value = 120; }
+      if(p>180){ $(id).value = 180; }
     });
   });
 
@@ -2055,7 +2056,7 @@
   ['renegPrazo','renegPrazoSac'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
       let p = Math.round(parseFloat($(id).value)||1);
-      if(p>120){ $(id).value = 120; }
+      if(p>180){ $(id).value = 180; }
     });
   });
 
@@ -2163,7 +2164,7 @@
     if(valorFinanciar<=0) return null;
 
     let prazo = Math.round(parseFloat((sistemaReneg==='SAC' ? $('renegPrazoSac') : $('renegPrazo')).value)||1);
-    prazo = Math.min(120, Math.max(1,prazo));
+    prazo = Math.min(180, Math.max(1,prazo));
     let carencia = Math.round(parseFloat($('renegCarencia').value)||0);
     carencia = Math.max(0, Math.min(carencia, prazo-1));
 
