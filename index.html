@@ -928,7 +928,8 @@
   const $ = id => document.getElementById(id);
 
   // ---------- Fator K (FGI, contratações >= 2022) ----------
-  const FATOR_K_RANGES = [
+  // Valor padrão embutido — usado se o config.json não existir/não carregar/tiver erro.
+  let FATOR_K_RANGES = [
     [1,3,0.0142],[4,6,0.0062],[7,9,0.0042],[10,12,0.0031],[13,15,0.0027],
     [16,18,0.0024],[19,21,0.0022],[22,24,0.0020],[25,27,0.0018],[28,30,0.0017],
     [31,33,0.0016],[34,36,0.0015],[37,39,0.0014],[40,45,0.0013],[46,48,0.0012],
@@ -970,11 +971,12 @@
   });
   bindSeg('seg-fundo', v=>{ fundo=v; updateFundoHint(); });
 
-  const IOF_POR_PESSOA = {
+  let IOF_POR_PESSOA = {
     PF:        { fixo: '0.38', diario: '0.0082'  },
     PJ:        { fixo: '0.38', diario: '0.0082'  },
     PJSIMPLES: { fixo: '0.38', diario: '0.00274' },
   };
+  let IOF_ADICIONAL_DESCONTO_TITULOS_PCT = 0.38; // % — usado no modo "Desconto de Títulos"
   const IOF_PESSOA_LABEL = { PF:'IOF (PF)', PJ:'IOF (PJ)', PJSIMPLES:'IOF (PJ Simples)' };
   bindSeg('seg-iofPessoa', v=>{
     const cfg = IOF_POR_PESSOA[v];
@@ -1065,12 +1067,82 @@
   // ---------- seguro prestamista: tabela oficial por faixa etária (Tabela8) ----------
   // Fonte: simulador.xlsm, aba "PRESTAMISTA SAC" (Tabela8) — taxa mensal aplicada sobre
   // o valor total das parcelas, pró-rata pelos dias corridos da operação (pagamento único).
-  const FAIXAS_PRESTAMISTA = [
+  const FAIXAS_PRESTAMISTA_PADRAO = [
     {min:18, max:65, taxa:0.0522/100},
     {min:66, max:70, taxa:0.10885/100},
     {min:71, max:75, taxa:0.20972/100},
     {min:76, max:80, taxa:0.37769/100},
   ];
+  let FAIXAS_PRESTAMISTA = FAIXAS_PRESTAMISTA_PADRAO;
+
+  // ---------- tarifa de cadastro/TAC e comissão de aval (FAMPE/FAMPE Mulher/FGI) ----------
+  let TARIFA_CONFIG = { percentual: 1, tetoReais: 4000 }; // percentual em %, ex.: 1 = 1%
+  let COMISSAO_CONFIG = {
+    FAMPE:        { taxaMensalPct: 0.1, baseSobreValorPct: 80 },
+    FAMPE_MULHER: { taxaMensalPct: 0.1, baseSobreValorPct: 100 },
+    FGI:          { percentualBasePct: 48 },
+  };
+
+  // ---------- configuração externa (config.json) ----------
+  // Carrega taxas/tabelas de um arquivo externo hospedado junto com a página, para poder
+  // ajustar valores sem editar o index.html. Roda em paralelo com o carregamento normal da
+  // página (não trava nada); se o arquivo não existir, tiver erro de rede, ou o JSON estiver
+  // mal formado, o simulador simplesmente ignora e segue com os valores padrão já embutidos
+  // no código acima — nunca quebra por causa disso. Funciona apenas quando a página é aberta
+  // por um endereço http(s) (ex.: Vercel); em arquivo local (file://) o navegador bloqueia o
+  // fetch por segurança e o aviso abaixo aparece só no console (F12), sem afetar o uso normal.
+  async function carregarConfigExterna(){
+    try{
+      const resp = await fetch('./config.json', { cache: 'no-store' });
+      if(!resp.ok) return;
+      const cfg = await resp.json();
+
+      if(cfg.iof){
+        if(cfg.iof.PF && cfg.iof.PJ && cfg.iof.PJSIMPLES){
+          IOF_POR_PESSOA = {
+            PF:        { fixo: String(cfg.iof.PF.fixo),        diario: String(cfg.iof.PF.diario) },
+            PJ:        { fixo: String(cfg.iof.PJ.fixo),        diario: String(cfg.iof.PJ.diario) },
+            PJSIMPLES: { fixo: String(cfg.iof.PJSIMPLES.fixo), diario: String(cfg.iof.PJSIMPLES.diario) },
+          };
+          // se a seleção atual de pessoa já estiver na tela, reaplica com os novos valores
+          const btnAtivo = document.querySelector('#seg-iofPessoa button.active');
+          if(btnAtivo) segClick('seg-iofPessoa', btnAtivo.dataset.val);
+        }
+        if(typeof cfg.iof.adicionalDescontoTitulos === 'number'){
+          IOF_ADICIONAL_DESCONTO_TITULOS_PCT = cfg.iof.adicionalDescontoTitulos;
+        }
+      }
+
+      if(cfg.tarifa && typeof cfg.tarifa.percentual==='number' && typeof cfg.tarifa.tetoReais==='number'){
+        TARIFA_CONFIG = { percentual: cfg.tarifa.percentual, tetoReais: cfg.tarifa.tetoReais };
+      }
+
+      if(cfg.comissaoAval){
+        const ca = cfg.comissaoAval;
+        if(ca.FAMPE && ca.FAMPE_MULHER && ca.FGI){
+          COMISSAO_CONFIG = {
+            FAMPE:        { taxaMensalPct: ca.FAMPE.taxaMensalPct,        baseSobreValorPct: ca.FAMPE.baseSobreValorPct },
+            FAMPE_MULHER: { taxaMensalPct: ca.FAMPE_MULHER.taxaMensalPct, baseSobreValorPct: ca.FAMPE_MULHER.baseSobreValorPct },
+            FGI:          { percentualBasePct: ca.FGI.percentualBasePct },
+          };
+        }
+        if(ca.FGI && Array.isArray(ca.FGI.fatorKPorFaixaDePrazoMeses) && ca.FGI.fatorKPorFaixaDePrazoMeses.length){
+          FATOR_K_RANGES = ca.FGI.fatorKPorFaixaDePrazoMeses.map(f=>[f.prazoMinMeses, f.prazoMaxMeses, f.fatorK]);
+        }
+      }
+
+      if(cfg.seguroPrestamista && Array.isArray(cfg.seguroPrestamista.faixasEtarias) && cfg.seguroPrestamista.faixasEtarias.length){
+        FAIXAS_PRESTAMISTA = cfg.seguroPrestamista.faixasEtarias.map(f=>(
+          { min: f.idadeMin, max: f.idadeMax, taxa: f.taxaMensalPct/100 }
+        ));
+      }
+
+      console.info('config.json carregado — usando taxas customizadas.');
+    }catch(e){
+      console.warn('config.json não carregado (usando valores padrão embutidos):', e.message);
+    }
+  }
+  carregarConfigExterna();
   function taxaPrestamistaPorIdade(idade){
     for(const f of FAIXAS_PRESTAMISTA){ if(idade>=f.min && idade<=f.max) return f.taxa; }
     return null; // fora de faixa (menor de 18 ou maior de 80): seguro não disponível
@@ -1174,7 +1246,7 @@
     const iof = iofFixo + iofDiario;
 
     const tarifaAtiva = $('tarifaAtiva').checked;
-    const tarifa = tarifaAtiva ? Math.min(bruto*0.01, 4000) : 0;
+    const tarifa = tarifaAtiva ? Math.min(bruto*(TARIFA_CONFIG.percentual/100), TARIFA_CONFIG.tetoReais) : 0;
 
     let comissao = 0;
     const comissaoAtiva = $('comissaoAtiva').checked;
@@ -1186,15 +1258,17 @@
       const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000);
       if(fundo==='FAMPE'){
         const prazoOp = Math.ceil(diasOperacao/30); // ROUNDUP
-        comissao = 0.001*prazoOp*(bruto*0.8);
+        const c = COMISSAO_CONFIG.FAMPE;
+        comissao = (c.taxaMensalPct/100)*prazoOp*(bruto*(c.baseSobreValorPct/100));
       } else if(fundo==='FAMPE_MULHER'){
-        // FAMPE Mulher: 0,1% × prazo × 100% do valor (base cheia, sem o fator 80%)
+        // FAMPE Mulher: taxa × prazo × base do valor (por padrão, base cheia sem o fator 80%)
         const prazoOp = Math.ceil(diasOperacao/30); // ROUNDUP (mesma contagem do FAMPE)
-        comissao = 0.001*prazoOp*bruto;
+        const c = COMISSAO_CONFIG.FAMPE_MULHER;
+        comissao = (c.taxaMensalPct/100)*prazoOp*(bruto*(c.baseSobreValorPct/100));
       } else { // FGI
         const prazoOp = Math.floor(diasOperacao/30); // ROUNDDOWN
         const fatorK = getFatorK(prazoOp);
-        comissao = 0.48*fatorK*bruto*prazoOp;
+        comissao = (COMISSAO_CONFIG.FGI.percentualBasePct/100)*fatorK*bruto*prazoOp;
       }
     }
 
@@ -1828,7 +1902,7 @@
     const totalJuros = linhas.reduce((s,l)=>s+l.juros,0);
     const valorPosDesconto = valorBordero - totalJuros;
     const iofDiarioTotal = linhas.reduce((s,l)=>s+l.iof,0);
-    const iofAdicional = valorPosDesconto*0.0038;
+    const iofAdicional = valorPosDesconto*(IOF_ADICIONAL_DESCONTO_TITULOS_PCT/100);
     const iofTotal = iofDiarioTotal + iofAdicional;
     const valorLiquidoFinal = valorPosDesconto - iofTotal - tarifa;
 
@@ -2028,7 +2102,7 @@
     const iof = iofFixo + iofDiario;
 
     const tarifaAtiva = $('renegTarifaAtiva').checked;
-    const tarifa = tarifaAtiva ? Math.min(valorFinanciar*0.01, 4000) : 0;
+    const tarifa = tarifaAtiva ? Math.min(valorFinanciar*(TARIFA_CONFIG.percentual/100), TARIFA_CONFIG.tetoReais) : 0;
 
     let prestamista = 0;
     let prestamistaInfo = null;
