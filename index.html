@@ -1494,12 +1494,31 @@
 
     const linhas = opts.linhas;
     const total = linhas.length;
-    // Sempre 1 coluna (nunca divide em duas colunas lado a lado), com fonte fixa e
-    // legível. Antes o código tentava espremer tudo numa única página de PDF (por isso
-    // dividia em 2 colunas para tabelas grandes); agora o PDF pagina automaticamente
-    // (ver gerarEBaixarPDF), então a tabela pode crescer normalmente e continuar na
-    // página seguinte, com o cabeçalho de novo no topo de cada página.
-    const fs = total <= 40 ? 8.5 : (total <= 70 ? 8 : 7.5);
+    // Até 60 parcelas: 1 coluna, tudo numa página só. Acima de 60: 2 colunas lado a
+    // lado (nunca mais que 2), ainda numa página só — a fonte é calculada por busca
+    // binária para preencher a altura da folha sem estourar. Se mesmo assim não coubesse
+    // (caso extremo), o gerarEBaixarPDF tem um fallback que pagina automaticamente.
+    const nCols = total <= 60 ? 1 : 2;
+    const linhasPorColuna = Math.ceil(total/nCols);
+
+    // Altura disponível para a tabela: 203mm de base, calibrada para o caso padrão
+    // (título em 1 linha + 2 linhas de quadrados principais). Quando há a faixa extra
+    // de 3 quadradinhos (Renegociação: Entrada/IOF/Soma) + título mais longo
+    // ("— Renegociação", que pode quebrar em 2 linhas), reserva mais ~23mm.
+    let alturaDisponivelMM = 203;
+    if(extras.length) alturaDisponivelMM -= 23;
+    if(nomeAssociado) alturaDisponivelMM -= 6;
+    alturaDisponivelMM -= 10; // aviso fixo de "simulação, sem valor contratual" no rodapé
+    const alturaDisponivelPX = alturaDisponivelMM * 3.7795; // px por mm a 96dpi
+    // altura real de uma linha = fonte*1.12 (line-height) + 2*padding + 1px de borda
+    const alturaLinha = (fs) => { const pad = Math.max(0.5, fs*0.22); return fs*1.12 + 2*pad + 1; };
+    const nLinhasComCabecalho = linhasPorColuna + 1; // +1 pela linha de cabeçalho da tabela
+    let lo = 5.5, hi = 12;
+    for(let k=0; k<40; k++){
+      const mid = (lo+hi)/2;
+      if(nLinhasComCabecalho*alturaLinha(mid) <= alturaDisponivelPX) lo = mid; else hi = mid;
+    }
+    const fs = lo;
     const pad = Math.max(0.5, fs*0.22);
     const sheet = $('printSheet');
     sheet.style.setProperty('--print-fs', fs.toFixed(2)+'px');
@@ -1517,13 +1536,17 @@
       {header:'Amort.', cell:l=>l.carencia? '—' : fmtBRL(l.amort)},
       {header:'Saldo', cell:l=>fmtBRL(l.saldo)},
     ];
-    let corpo = '';
-    linhas.forEach(l=>{
-      corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
-        + colunas.map(col=>`<td${col.red?' class="p-red"':''}>${col.cell(l)}</td>`).join('')
-        + `</tr>`;
-    });
-    colsHtml = `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
+    for(let c=0; c<nCols; c++){
+      const fatia = linhas.slice(c*linhasPorColuna, (c+1)*linhasPorColuna);
+      if(!fatia.length) continue;
+      let corpo = '';
+      fatia.forEach(l=>{
+        corpo += `<tr class="${l.carencia||l.jaVencida?'carencia':''}">`
+          + colunas.map(col=>`<td${col.red?' class="p-red"':''}>${col.cell(l)}</td>`).join('')
+          + `</tr>`;
+      });
+      colsHtml += `<table><thead><tr>${colunas.map(col=>`<th>${col.header}</th>`).join('')}</tr></thead><tbody>${corpo}</tbody></table>`;
+    }
     $('pCols').innerHTML = colsHtml;
   }
 
