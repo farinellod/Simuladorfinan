@@ -384,8 +384,8 @@
           <label>Taxa pós / indexador (% a.m.)</label>
           <input type="number" id="taxaPos" step="0.01" value="0">
           <div class="btn-row" style="margin-top:6px;">
-            <button type="button" class="btn-ghost btn-indexador" data-serie="4390" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
-            <button type="button" class="btn-ghost btn-indexador" data-serie="4391" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
+            <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
+            <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
           </div>
           <p class="hint" id="taxaPosIndexadorStatus"></p>
         </div>
@@ -595,8 +595,8 @@
             <label>Taxa pós / indexador (% a.m.)</label>
             <input type="number" id="renegTaxaPos" step="0.01" value="0">
             <div class="btn-row" style="margin-top:6px;">
-              <button type="button" class="btn-ghost btn-indexador" data-serie="4390" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
-              <button type="button" class="btn-ghost btn-indexador" data-serie="4391" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
+              <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
+              <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
             </div>
             <p class="hint" id="renegTaxaPosIndexadorStatus"></p>
           </div>
@@ -1156,44 +1156,44 @@
   carregarConfigExterna();
 
   // ---------- puxar SELIC/CDI (Banco Central, série SGS) para a taxa pós do SAC ----------
-  // Séries oficiais, públicas, sem necessidade de chave/autenticação:
-  //   4390 = Selic acumulada no mês (% a.m.) · 4391 = CDI acumulado no mês (% a.m.)
-  const INDEXADOR_NOME = { '4390': 'SELIC', '4391': 'CDI' };
-  async function buscarTaxaIndexador(serie){
-    const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados/ultimos/2?formato=json`;
+  // Série oficial, pública, sem necessidade de chave/autenticação:
+  //   432 = Meta Selic definida pelo Copom (% a.a.)
+  // Conversão pra taxa mensal usada no SAC (conforme definido pelo usuário):
+  //   SELIC mensal = Meta Selic (% a.a.) / 12
+  //   CDI mensal   = (Meta Selic (% a.a.) − 0,10) / 12
+  async function buscarMetaSelicAnual(){
+    const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json`;
     const resp = await fetch(url, { cache: 'no-store' });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     const arr = await resp.json();
     if(!Array.isArray(arr) || !arr.length) throw new Error('resposta vazia');
-    // usa sempre o último mês já FECHADO (o mês corrente ainda está em formação/incompleto)
-    const hoje = new Date();
-    const mesAtual = hoje.getFullYear()*12 + hoje.getMonth();
-    const mesDe = item => { const [dd,mm,yyyy] = item.data.split('/').map(Number); return yyyy*12 + (mm-1); };
-    let escolhido = arr[0];
-    if(mesDe(arr[0]) >= mesAtual && arr.length>1) escolhido = arr[1];
-    const valor = parseFloat(String(escolhido.valor).replace(',','.'));
+    const item = arr[arr.length-1];
+    const valor = parseFloat(String(item.valor).replace(',','.'));
     if(!isFinite(valor)) throw new Error('valor inválido');
-    return { valor, data: escolhido.data };
+    return { valor, data: item.data };
   }
   document.querySelectorAll('.btn-indexador').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      const serie = btn.dataset.serie;
+      const tipo = btn.dataset.tipo; // 'SELIC' ou 'CDI'
       const alvoEl = $(btn.dataset.alvo);
       const statusEl = $(btn.dataset.status);
-      const nome = INDEXADOR_NOME[serie] || 'taxa';
       const textoOriginal = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'Buscando…';
       statusEl.textContent = '';
       statusEl.style.color = '';
       try{
-        const { valor, data } = await buscarTaxaIndexador(serie);
-        alvoEl.value = valor.toFixed(2);
-        const [dd,mm,yyyy] = data.split('/');
-        statusEl.textContent = `${nome} de ${mm}/${yyyy}: ${valor.toFixed(2)}% a.m. (fonte: Banco Central). Pode editar na mão se quiser outro valor.`;
+        const { valor: metaSelicAno, data } = await buscarMetaSelicAnual();
+        const base = tipo==='CDI' ? (metaSelicAno - 0.10) : metaSelicAno;
+        const taxaMensal = base/12;
+        alvoEl.value = taxaMensal.toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+        const formula = tipo==='CDI'
+          ? `(${metaSelicAno.toFixed(2)}% − 0,10%) ÷ 12`
+          : `${metaSelicAno.toFixed(2)}% ÷ 12`;
+        statusEl.textContent = `${tipo}: Meta Selic vigente em ${data} = ${metaSelicAno.toFixed(2)}% a.a. → ${formula} = ${taxaMensal.toFixed(4)}% a.m. (fonte: Banco Central). Pode editar na mão se quiser outro valor.`;
       }catch(e){
         statusEl.style.color = 'var(--rose)';
-        statusEl.textContent = `Não consegui buscar a ${nome} agora (sem internet ou API fora do ar). Preencha manualmente.`;
+        statusEl.textContent = `Não consegui buscar a Meta Selic agora (sem internet ou API fora do ar). Preencha manualmente.`;
       }finally{
         btn.disabled = false;
         btn.textContent = textoOriginal;
