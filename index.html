@@ -356,7 +356,7 @@
 
     <div class="field">
       <label>Valor da simulação (R$)</label>
-      <input type="text" id="valorSimulacao" inputmode="decimal" placeholder="0,00" value="50.000,00">
+      <input type="text" id="valorSimulacao" inputmode="decimal" placeholder="Insira o valor" value="">
     </div>
     <div class="seg" id="seg-tipoValor" style="margin-top:8px;">
       <button data-val="BRUTO" class="active">É valor BRUTO</button>
@@ -367,22 +367,22 @@
     <div class="row2" style="margin-top:14px;" id="row-taxa-price">
       <div class="field" style="margin-top:0;">
         <label>Taxa de juros (% a.m.)</label>
-        <input type="number" id="taxaMensal" step="0.01" value="1.99">
+        <input type="number" id="taxaMensal" step="0.01" placeholder="Insira a taxa" value="">
       </div>
       <div class="field" style="margin-top:0;">
         <label>Prazo total (meses, máx. 180)</label>
-        <input type="number" id="prazo" max="180" min="1" value="48">
+        <input type="number" id="prazo" max="180" min="1" placeholder="Insira o prazo" value="">
       </div>
     </div>
     <div class="hidden" id="row-taxa-sac">
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
           <label>Taxa pré (% a.m.)</label>
-          <input type="number" id="taxaPre" step="0.01" value="1.99">
+          <input type="number" id="taxaPre" step="0.01" placeholder="Insira a taxa pré" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pós / indexador (% a.m.)</label>
-          <input type="number" id="taxaPos" step="0.01" value="0">
+          <input type="number" id="taxaPos" step="0.01" placeholder="Insira a taxa pós" value="">
           <div class="btn-row" style="margin-top:6px;">
             <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
             <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
@@ -393,7 +393,7 @@
       <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
       <div class="field">
         <label>Prazo total (meses, máx. 180)</label>
-        <input type="number" id="prazoSac" max="180" min="1" value="48">
+        <input type="number" id="prazoSac" max="180" min="1" placeholder="Insira o prazo" value="">
       </div>
     </div>
     <div class="field">
@@ -562,11 +562,11 @@
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
           <label>Valor total da dívida (R$)</label>
-          <input type="text" id="renegValorTotal" inputmode="decimal" placeholder="0,00" value="0,00">
+          <input type="text" id="renegValorTotal" inputmode="decimal" placeholder="Insira o valor total" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Valor de entrada (R$)</label>
-          <input type="text" id="renegValorEntrada" inputmode="decimal" placeholder="0,00" value="0,00">
+          <input type="text" id="renegValorEntrada" inputmode="decimal" placeholder="Insira o valor de entrada" value="">
         </div>
       </div>
       <div class="field">
@@ -578,22 +578,22 @@
       <div class="row2" style="margin-top:14px;" id="row-taxa-price-reneg">
         <div class="field" style="margin-top:0;">
           <label>Taxa de juros (% a.m.)</label>
-          <input type="number" id="renegTaxaMensal" step="0.01" value="1.99">
+          <input type="number" id="renegTaxaMensal" step="0.01" placeholder="Insira a taxa" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Prazo total (meses, máx. 180)</label>
-          <input type="number" id="renegPrazo" max="180" min="1" value="48">
+          <input type="number" id="renegPrazo" max="180" min="1" placeholder="Insira o prazo" value="">
         </div>
       </div>
       <div class="hidden" id="row-taxa-sac-reneg">
         <div class="row2" style="margin-top:14px;">
           <div class="field" style="margin-top:0;">
             <label>Taxa pré (% a.m.)</label>
-            <input type="number" id="renegTaxaPre" step="0.01" value="1.99">
+            <input type="number" id="renegTaxaPre" step="0.01" placeholder="Insira a taxa pré" value="">
           </div>
           <div class="field" style="margin-top:0;">
             <label>Taxa pós / indexador (% a.m.)</label>
-            <input type="number" id="renegTaxaPos" step="0.01" value="0">
+            <input type="number" id="renegTaxaPos" step="0.01" placeholder="Insira a taxa pós" value="">
             <div class="btn-row" style="margin-top:6px;">
               <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
               <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
@@ -604,7 +604,7 @@
         <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
         <div class="field">
           <label>Prazo total (meses, máx. 180)</label>
-          <input type="number" id="renegPrazoSac" max="180" min="1" value="48">
+          <input type="number" id="renegPrazoSac" max="180" min="1" placeholder="Insira o prazo" value="">
         </div>
       </div>
       <div class="field">
@@ -817,11 +817,11 @@
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
           <label>Valor financiado (R$)</label>
-          <input type="text" id="quitValorFinanciado" inputmode="decimal" placeholder="0,00" value="0,00">
+          <input type="text" id="quitValorFinanciado" inputmode="decimal" placeholder="Insira o valor" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa de juros (% a.m.)</label>
-          <input type="number" id="quitTaxaMensal" step="0.01" value="1.99">
+          <input type="number" id="quitTaxaMensal" step="0.01" placeholder="Insira a taxa" value="">
         </div>
       </div>
 
@@ -840,7 +840,7 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>Quantas vezes (prazo, máx. 120)</label>
-          <input type="number" id="quitPrazo" max="120" min="1" value="48">
+          <input type="number" id="quitPrazo" max="120" min="1" placeholder="Insira o prazo" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Data da quitação</label>
@@ -2561,13 +2561,13 @@
 
   function resetEmprestimo(){
     segClick('seg-sistema','PRICE');
-    $('valorSimulacao').value = '50.000,00';
+    $('valorSimulacao').value = '';
     segClick('seg-tipoValor','BRUTO');
-    $('taxaMensal').value = '1.99';
-    $('prazo').value = '48';
-    $('taxaPre').value = '1.99';
-    $('taxaPos').value = '0';
-    $('prazoSac').value = '48';
+    $('taxaMensal').value = '';
+    $('prazo').value = '';
+    $('taxaPre').value = '';
+    $('taxaPos').value = '';
+    $('prazoSac').value = '';
     $('carencia').value = '0';
     $('dataLiberacao').value = toISODate(new Date());
     primeiraParcelaEditadaManualmente = false;
@@ -2591,14 +2591,14 @@
 
   function resetReneg(){
     segClick('seg-sistema-reneg','PRICE');
-    $('renegValorTotal').value = '0,00';
-    $('renegValorEntrada').value = '0,00';
+    $('renegValorTotal').value = '';
+    $('renegValorEntrada').value = '';
     atualizarValorFinanciar();
-    $('renegTaxaMensal').value = '1.99';
-    $('renegPrazo').value = '48';
-    $('renegTaxaPre').value = '1.99';
-    $('renegTaxaPos').value = '0';
-    $('renegPrazoSac').value = '48';
+    $('renegTaxaMensal').value = '';
+    $('renegPrazo').value = '';
+    $('renegTaxaPre').value = '';
+    $('renegTaxaPos').value = '';
+    $('renegPrazoSac').value = '';
     $('renegCarencia').value = '0';
     $('renegDataLiberacao').value = toISODate(new Date());
     renegPrimeiraParcelaEditadaManualmente = false;
@@ -2625,12 +2625,12 @@
   }
 
   function resetQuitacao(){
-    $('quitValorFinanciado').value = '0,00';
-    $('quitTaxaMensal').value = '1.99';
+    $('quitValorFinanciado').value = '';
+    $('quitTaxaMensal').value = '';
     $('quitDataLiberacao').value = toISODate(new Date());
     quitPrimeiraParcelaEditadaManualmente = false;
     autoPreencherPrimeiraParcelaQuitacao();
-    $('quitPrazo').value = '48';
+    $('quitPrazo').value = '';
     $('quitDataQuitacao').value = toISODate(new Date());
     $('resultsQuitacao').classList.add('hidden');
     lastResultQuitacao = null;
