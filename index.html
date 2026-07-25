@@ -928,22 +928,38 @@
           <input type="text" id="investValor" inputmode="decimal" placeholder="Insira o valor" value="">
         </div>
         <div class="field" style="margin-top:0;">
+          <label>Dias até o resgate</label>
+          <input type="number" id="investDiasResgate" min="1" step="1" placeholder="Ex: 90">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
           <label>Data de resgate</label>
           <input type="date" id="investDataResgate">
         </div>
+        <div class="field" style="margin-top:0;">
+          <label>Data de aplicação</label>
+          <input type="text" id="investDataAplicacaoView" value="" disabled style="opacity:.7;">
+        </div>
       </div>
+      <p class="hint">Preencha "Dias até o resgate" que a data de resgate é calculada a partir de hoje — ou selecione a data direto no campo ao lado (os dois ficam sincronizados). A data de aplicação é sempre hoje.</p>
+    </section>
 
+    <section class="card">
+      <p class="card-title">Indexadores</p>
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>SELIC atual (% a.a.)</label>
-          <input type="number" id="investSelic" step="0.01" value="14.25">
+          <input type="number" id="investSelic" step="0.01" placeholder="Insira a SELIC" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>CDI atual (% a.a.)</label>
-          <input type="number" id="investCdi" step="0.01" value="14.15">
+          <input type="number" id="investCdi" step="0.01" placeholder="Insira o CDI" value="">
         </div>
       </div>
-      <p class="hint">A data de aplicação é sempre hoje. Dias úteis contam feriados nacionais (fixos e móveis) e fins de semana, igual ao NETWORKDAYS da planilha.</p>
+      <button type="button" class="btn-ghost btn-indexador-invest" id="btnPuxarSelicInvest" style="padding:8px 12px;font-size:13px;">Puxar SELIC</button>
+      <p class="hint" id="investSelicStatus"></p>
+      <p class="hint">Dias úteis contam feriados nacionais (fixos e móveis) e fins de semana, igual ao NETWORKDAYS da planilha.</p>
     </section>
 
     <section class="card">
@@ -972,7 +988,7 @@
         <label>TR mensal aproximada da poupança (%)</label>
         <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
       </div>
-      <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR.</p>
+      <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR. Valores padrão vêm do config-investimentos.json quando disponível.</p>
     </section>
 
     <button class="btn-primary" id="btnCalcularInvestimento">Calcular simulação de investimentos</button>
@@ -982,10 +998,6 @@
         <p class="card-title">Resumo</p>
         <div class="kpi-grid">
           <div class="kpi accent">
-            <div class="k-label">Melhor opção líquida</div>
-            <div class="k-value" id="investOutMelhor">—</div>
-          </div>
-          <div class="kpi">
             <div class="k-label">Valor investido</div>
             <div class="k-value" id="investOutValor">—</div>
           </div>
@@ -1005,12 +1017,24 @@
         <div class="table-scroll">
           <table class="amort" id="tabelaInvestimento">
             <thead>
-              <tr><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
+              <tr><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Distrib. Resultados</th><th>Rend. líq. c/ result.</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
             </thead>
             <tbody id="tabelaInvestimentoBody"></tbody>
           </table>
         </div>
-        <p class="hint">Não inclui distribuição de sobras da cooperativa (depende de dados de captação/repasse específicos da agência, fora do escopo deste simulador). Rentabilidade líquida já descontada de IOF e IR, quando aplicável.</p>
+        <p class="hint">Distribuição de Resultados é a estimativa de sobras da cooperativa, calculada a partir da participação do valor investido na receita/captação de referência de cada linha de produto (ajustável em config-investimentos.json). Rentabilidade líquida já descontada de IOF e IR, quando aplicável — não inclui a distribuição de resultados.</p>
+
+        <div class="field" style="margin-top:14px;">
+          <label>Produto para impressão/PDF</label>
+          <select id="investSelectPDF">
+            <option value="TODOS" selected>Todos os produtos</option>
+            <option value="0">Poupança (PF)</option>
+            <option value="1">LCA/LCI Pós-Fixado (PF)</option>
+            <option value="2">Sicredinvest Pós-Fixado</option>
+            <option value="3">Sicredinvest Pré-Fixado</option>
+            <option value="4">LCA Pré-Fixado</option>
+          </select>
+        </div>
         <div class="btn-row">
           <button class="btn-ghost" id="btnImprimirInvestimento">Imprimir simulação</button>
           <button class="btn-ghost" id="btnBaixarInvestimento">Baixar simulação (PDF)</button>
@@ -2660,18 +2684,25 @@
   // Fonte: simulador_de_rentabilidade_vanguarda.xls, aba "Simulador" — mesma
   // lógica de taxa a.a. → a.m. → remuneração do período (dias úteis/252),
   // tabela de IOF regressivo (30 dias) e IR regressivo (180/360/720 dias) da
-  // aba "Informações 02". A planilha aplicava IOF/IR só ao Sicredinvest
-  // Pós-Fixado (coluna I); aqui aplicamos a mesma regra tributária também ao
-  // Sicredinvest Pré-Fixado, já que ambos são RDC e seguem a mesma legislação
-  // — a planilha só não mostrava isso porque o exemplo pré-fixado usava prazo
-  // igual ao da poupança/LCA, sem essa conta ficar visível. Poupança e
-  // LCA/LCI seguem sempre isentas de IOF/IR para pessoa física, como no
-  // original. A distribuição de sobras da cooperativa (linhas 30-33/48-71 da
-  // planilha) não entra aqui por depender de dados de captação da agência.
+  // aba "Informações 02", e Distribuição de Resultados (sobras) das linhas
+  // 48-57. A planilha aplicava IOF/IR só ao Sicredinvest Pós-Fixado (coluna
+  // I); aqui aplicamos a mesma regra tributária também ao Sicredinvest
+  // Pré-Fixado, já que ambos são RDC e seguem a mesma legislação — a planilha
+  // só não mostrava isso porque o exemplo pré-fixado usava prazo curto o
+  // bastante pra IOF zerar de qualquer forma. Poupança e LCA/LCI seguem
+  // sempre isentas de IOF/IR para pessoa física, como no original.
+  // Parâmetros ajustáveis (taxas padrão, tabelas de IOF/IR e os dados de
+  // captação/receita usados na Distribuição de Resultados) vêm de
+  // config-investimentos.json quando o arquivo existe; senão usa os valores
+  // padrão embutidos abaixo (os mesmos da planilha de referência).
   // ============================================================
   let lastResultInvestimento = null;
 
   aplicarMascaraMoeda($('investValor'));
+
+  function slugTexto(s){
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  }
 
   // ---- feriados nacionais (fixos + móveis via Páscoa) para dias úteis ----
   function pascoa(ano){
@@ -2718,21 +2749,121 @@
     return count;
   }
 
-  // ---- tabelas regressivas (RF tributada: Sicredinvest) ----
-  const TABELA_IOF_REGRESSIVO = [0.96,0.93,0.90,0.86,0.83,0.80,0.76,0.73,0.70,0.66,0.63,0.60,0.56,0.53,0.50,0.46,0.43,0.40,0.36,0.33,0.30,0.26,0.23,0.20,0.16,0.13,0.10,0.06,0.03,0.00];
+  // ---- tabelas regressivas (RF tributada: Sicredinvest) — sobrescritas por config-investimentos.json ----
+  let IOF_REGRESSIVO_INV = [0.96,0.93,0.90,0.86,0.83,0.80,0.76,0.73,0.70,0.66,0.63,0.60,0.56,0.53,0.50,0.46,0.43,0.40,0.36,0.33,0.30,0.26,0.23,0.20,0.16,0.13,0.10,0.06,0.03,0.00];
+  let IR_FAIXAS_INV = [
+    { min:0,   max:180,      aliquota:0.225 },
+    { min:181, max:360,      aliquota:0.20  },
+    { min:361, max:720,      aliquota:0.175 },
+    { min:721, max:Infinity, aliquota:0.15  },
+  ];
   function iofRegressivoInv(diasCorr){
-    if(diasCorr<1 || diasCorr>30) return 0;
-    return TABELA_IOF_REGRESSIVO[diasCorr-1];
+    if(diasCorr<1 || diasCorr>IOF_REGRESSIVO_INV.length) return 0;
+    return IOF_REGRESSIVO_INV[diasCorr-1];
   }
   function irRegressivoInv(diasCorr){
-    if(diasCorr>=721) return 0.15;
-    if(diasCorr>360) return 0.175;
-    if(diasCorr>180) return 0.20;
-    return 0.225;
+    const faixa = IR_FAIXAS_INV.find(f=>diasCorr>=f.min && diasCorr<=f.max);
+    return faixa ? faixa.aliquota : IR_FAIXAS_INV[IR_FAIXAS_INV.length-1].aliquota;
   }
   function taxaPoupancaAnualInv(selic){
     return selic>0.085 ? 0.0617 : selic*0.70;
   }
+
+  // ---- Distribuição de Resultados (sobras) — dados de captação/receita da agência,
+  // sobrescritos por config-investimentos.json. Fórmula (planilha, linhas 48-57):
+  //   R$ do produto      = receitaCentralizadaBase × pctOperacao
+  //   meses aprox.        = ROUND(dias corridos / 30, 0)
+  //   % reciprocidade      = ((valor × meses aprox.) / 12) / transferBase
+  //   Distrib. Resultados = R$ do produto × % reciprocidade
+  let DISTRIBUICAO_RESULTADOS_CONFIG = {
+    poupanca:              { receitaCentralizadaBase: 63911489.21, transferBase: 843462744.89,  pctOperacao: 0.03 },
+    lcaPosFixado:          { receitaCentralizadaBase: 63911489.21, transferBase: 2297996749.89, pctOperacao: 0.07 },
+    sicredinvestPosFixado: { receitaCentralizadaBase: 63911489.21, transferBase: 3834837160.13, pctOperacao: 0.27 },
+    sicredinvestPreFixado: { receitaCentralizadaBase: 63911489.21, transferBase: 3834837160.13, pctOperacao: 0.27 },
+    lcaPreFixado:          { receitaCentralizadaBase: 63911489.21, transferBase: 2297996749.89, pctOperacao: 0.07 },
+  };
+
+  // ---------- configuração externa (config-investimentos.json) ----------
+  async function carregarConfigInvestimentos(){
+    try{
+      const resp = await fetch('./config-investimentos.json', { cache: 'no-store' });
+      if(!resp.ok) return;
+      const cfg = await resp.json();
+
+      if(cfg.parametrosPadrao){
+        const pp = cfg.parametrosPadrao;
+        if(typeof pp.pctCdiLcaPos==='number') $('investPctCdiLca').value = pp.pctCdiLcaPos;
+        if(typeof pp.pctCdiSicredinvestPos==='number') $('investPctCdiSicredinvest').value = pp.pctCdiSicredinvestPos;
+        if(typeof pp.taxaPreSicredinvestAA==='number') $('investTaxaPreSicredinvest').value = pp.taxaPreSicredinvestAA;
+        if(typeof pp.taxaPreLcaAA==='number') $('investTaxaPreLca').value = pp.taxaPreLcaAA;
+        if(typeof pp.trPoupancaMensal==='number') $('investTrPoupanca').value = pp.trPoupancaMensal;
+        if(typeof pp.diasResgatePadrao==='number'){
+          $('investDiasResgate').value = pp.diasResgatePadrao;
+          atualizarResgatePorDias();
+        }
+      }
+      if(Array.isArray(cfg.iofRegressivo30Dias) && cfg.iofRegressivo30Dias.length===30){
+        IOF_REGRESSIVO_INV = cfg.iofRegressivo30Dias.map(Number);
+      }
+      if(Array.isArray(cfg.irRegressivo) && cfg.irRegressivo.length){
+        IR_FAIXAS_INV = cfg.irRegressivo.map(f=>(
+          { min: f.diasMin, max: (f.diasMax==null? Infinity : f.diasMax), aliquota: f.aliquotaPct/100 }
+        ));
+      }
+      if(cfg.distribuicaoResultados){
+        Object.keys(DISTRIBUICAO_RESULTADOS_CONFIG).forEach(chave=>{
+          const d = cfg.distribuicaoResultados[chave];
+          if(d && typeof d.receitaCentralizadaBase==='number' && typeof d.transferBase==='number' && typeof d.pctOperacao==='number'){
+            DISTRIBUICAO_RESULTADOS_CONFIG[chave] = { receitaCentralizadaBase: d.receitaCentralizadaBase, transferBase: d.transferBase, pctOperacao: d.pctOperacao/100 };
+          }
+        });
+      }
+      console.info('config-investimentos.json carregado — usando parâmetros customizados.');
+    }catch(e){
+      console.warn('config-investimentos.json não carregado (usando valores padrão embutidos):', e.message);
+    }
+  }
+  carregarConfigInvestimentos();
+
+  // ---- dias até o resgate ↔ data de resgate (sincronizados nos dois sentidos) ----
+  function atualizarResgatePorDias(){
+    const dias = parseInt($('investDiasResgate').value,10);
+    if(!dias || dias<1) return;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    $('investDataResgate').value = toISODate(addDias(hoje,dias));
+  }
+  function atualizarDiasPorResgate(){
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const dataResgate = parseDataInput($('investDataResgate'));
+    if(!dataResgate || dataResgate<=hoje) return;
+    $('investDiasResgate').value = diasCorridosInv(hoje, dataResgate);
+  }
+  $('investDiasResgate').addEventListener('input', atualizarResgatePorDias);
+  $('investDataResgate').addEventListener('input', atualizarDiasPorResgate);
+
+  // ---- Puxar SELIC (Banco Central, série SGS 432 — Meta Selic a.a.) ----
+  // Preenche direto os campos anuais da simulação de investimentos (sem
+  // dividir por 12, diferente do indexador usado na taxa pós do SAC).
+  // CDI = SELIC − 0,10 p.p., mesma regra usada nos indexadores de empréstimo.
+  $('btnPuxarSelicInvest').addEventListener('click', async ()=>{
+    const btn = $('btnPuxarSelicInvest');
+    const statusEl = $('investSelicStatus');
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Buscando…';
+    statusEl.textContent = ''; statusEl.style.color = '';
+    try{
+      const { valor: metaSelicAno, data } = await buscarMetaSelicAnual();
+      const cdiAno = metaSelicAno - 0.10;
+      $('investSelic').value = metaSelicAno.toFixed(2);
+      $('investCdi').value = cdiAno.toFixed(2);
+      statusEl.textContent = `SELIC vigente em ${data} = ${metaSelicAno.toFixed(2)}% a.a. (fonte: Banco Central). CDI estimado = SELIC − 0,10 p.p. = ${cdiAno.toFixed(2)}% a.a. Pode editar na mão se quiser outro valor.`;
+    }catch(e){
+      statusEl.style.color = 'var(--rose)';
+      statusEl.textContent = 'Não consegui buscar a Meta Selic agora (sem internet ou API fora do ar). Preencha manualmente.';
+    }finally{
+      btn.disabled = false; btn.textContent = original;
+    }
+  });
 
   function calcularInvestimento(){
     const valor = parseMoeda($('investValor'));
@@ -2761,13 +2892,13 @@
       const taxaMensal = (Math.pow(1+taxaAnualProjetada, 1/12)-1) + trPoupanca;
       const taxaAnualEfetiva = Math.pow(1+taxaMensal,12)-1;
       const bruto = valor*remuneracaoPeriodo(taxaAnualEfetiva);
-      produtos.push({nome:'Poupança (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
+      produtos.push({chave:'poupanca', nome:'Poupança (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
     // LCA/LCI Pós-Fixado (PF) — sempre isenta
     {
       const taxaAnual = pctCdiLca*cdi;
       const bruto = valor*remuneracaoPeriodo(taxaAnual);
-      produtos.push({nome:'LCA/LCI Pós-Fixado (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
+      produtos.push({chave:'lcaPosFixado', nome:'LCA/LCI Pós-Fixado (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
     // Sicredinvest Pós-Fixado — RDC, tributado
     {
@@ -2775,22 +2906,28 @@
       const bruto = valor*remuneracaoPeriodo(taxaAnual);
       const iof = (-iofRegressivoInv(diasCorr)*bruto) + 0;
       const ir = (-(bruto+iof)*irRegressivoInv(diasCorr)) + 0;
-      produtos.push({nome:'Sicredinvest Pós-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
+      produtos.push({chave:'sicredinvestPosFixado', nome:'Sicredinvest Pós-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
     }
     // Sicredinvest Pré-Fixado — RDC, tributado
     {
       const bruto = valor*remuneracaoPeriodo(taxaPreSicred);
       const iof = (-iofRegressivoInv(diasCorr)*bruto) + 0;
       const ir = (-(bruto+iof)*irRegressivoInv(diasCorr)) + 0;
-      produtos.push({nome:'Sicredinvest Pré-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
+      produtos.push({chave:'sicredinvestPreFixado', nome:'Sicredinvest Pré-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
     }
     // LCA Pré-Fixado — sempre isenta
     {
       const bruto = valor*remuneracaoPeriodo(taxaPreLca);
-      produtos.push({nome:'LCA Pré-Fixado', bruto, iof:0, ir:0, liquido:bruto, isento:true});
+      produtos.push({chave:'lcaPreFixado', nome:'LCA Pré-Fixado', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
 
+    const mesesAprox = Math.round(diasCorr/30);
     produtos.forEach(p=>{
+      const cfgDist = DISTRIBUICAO_RESULTADOS_CONFIG[p.chave];
+      const rDoProduto = cfgDist.receitaCentralizadaBase*cfgDist.pctOperacao;
+      const pctReciprocidade = cfgDist.transferBase>0 ? ((valor*mesesAprox)/12)/cfgDist.transferBase : 0;
+      p.distribuicaoResultados = rDoProduto*pctReciprocidade;
+      p.liquidoComResultados = p.liquido + p.distribuicaoResultados;
       p.saldoLiquido = valor + p.liquido;
       p.rentabLiquida = p.liquido/valor;
       p.pctCdiLiquido = cdiPeriodo>0 ? p.rentabLiquida/cdiPeriodo : 0;
@@ -2799,9 +2936,40 @@
     return { valor, dataAplicacao, dataResgate, diasCorr, diasUt, produtos };
   }
 
+  function atualizarFolhaImpressaoInvestimento(){
+    if(!lastResultInvestimento) return;
+    const r = lastResultInvestimento;
+    const sel = $('investSelectPDF').value;
+    const produtosFiltrados = sel==='TODOS' ? r.produtos : [r.produtos[Number(sel)]];
+
+    preencherFolhaImpressao({
+      sistema: 'Simulação de Investimentos',
+      sub: `Valor: ${fmtBRL(r.valor)} · Resgate em ${fmtData(r.dataResgate)} (${r.diasCorr} dc / ${r.diasUt} du)${sel!=='TODOS' ? ' · Produto: '+produtosFiltrados[0].nome : ''} · Gerado em ${fmtData(new Date())}`,
+      kpis: [
+        {label:'Valor investido', value: fmtBRL(r.valor)},
+        {label:'Prazo', value: `${r.diasCorr} dc / ${r.diasUt} du`},
+        {label:'Data de resgate', value: fmtData(r.dataResgate)},
+        {label: sel==='TODOS'?'Produtos comparados':'Produto selecionado', value: sel==='TODOS'? String(r.produtos.length) : produtosFiltrados[0].nome},
+      ],
+      extras: [],
+      dedRows: [],
+      linhas: produtosFiltrados,
+      colunas: [
+        {header:'Produto', cell:p=>p.nome},
+        {header:'Rend. Bruto', cell:p=>fmtBRL(p.bruto)},
+        {header:'IOF', cell:p=>p.isento?'—':fmtBRL(p.iof)},
+        {header:'IR', cell:p=>p.isento?'—':fmtBRL(p.ir)},
+        {header:'Rend. Líquido', cell:p=>fmtBRL(p.liquido), red:true},
+        {header:'Distrib. Resultados', cell:p=>fmtBRL(p.distribuicaoResultados)},
+        {header:'Rend. líq. c/ result.', cell:p=>fmtBRL(p.liquidoComResultados)},
+        {header:'Saldo líquido', cell:p=>fmtBRL(p.saldoLiquido)},
+        {header:'Rentab. líq.', cell:p=>fmtPct(p.rentabLiquida)},
+      ],
+    });
+  }
+
   function renderInvestimento(r){
     const melhor = r.produtos.reduce((a,b)=> b.liquido>a.liquido? b:a, r.produtos[0]);
-    $('investOutMelhor').textContent = melhor.nome;
     $('investOutValor').textContent = fmtBRL(r.valor);
     $('investOutPrazo').textContent = `${r.diasCorr} dc / ${r.diasUt} du`;
     $('investOutDataResgate').textContent = fmtData(r.dataResgate);
@@ -2815,6 +2983,8 @@
         <td>${p.isento? '—' : fmtBRL(p.iof)}</td>
         <td>${p.isento? '—' : fmtBRL(p.ir)}</td>
         <td${destaque}>${fmtBRL(p.liquido)}</td>
+        <td>${fmtBRL(p.distribuicaoResultados)}</td>
+        <td>${fmtBRL(p.liquidoComResultados)}</td>
         <td>${fmtBRL(p.saldoLiquido)}</td>
         <td>${fmtPct(p.rentabLiquida)}</td>
         <td>${fmtPct(p.pctCdiLiquido)}</td>
@@ -2823,57 +2993,42 @@
     $('tabelaInvestimentoBody').innerHTML = tbody;
     $('resultsInvestimento').classList.remove('hidden');
 
-    // ---- folha de impressão ----
-    preencherFolhaImpressao({
-      sistema: 'Simulação de Investimentos',
-      sub: `Valor: ${fmtBRL(r.valor)} · Resgate em ${fmtData(r.dataResgate)} (${r.diasCorr} dc / ${r.diasUt} du) · Melhor opção: ${melhor.nome} · Gerado em ${fmtData(new Date())}`,
-      kpis: [
-        {label:'Valor investido', value: fmtBRL(r.valor)},
-        {label:'Melhor opção líquida', value: melhor.nome},
-        {label:'Rendimento líquido (melhor)', value: fmtBRL(melhor.liquido)},
-        {label:'Prazo', value: `${r.diasCorr} dc / ${r.diasUt} du`},
-      ],
-      extras: [],
-      dedRows: [],
-      linhas: r.produtos,
-      colunas: [
-        {header:'Produto', cell:p=>p.nome},
-        {header:'Rend. Bruto', cell:p=>fmtBRL(p.bruto)},
-        {header:'IOF', cell:p=>p.isento?'—':fmtBRL(p.iof)},
-        {header:'IR', cell:p=>p.isento?'—':fmtBRL(p.ir)},
-        {header:'Rend. Líquido', cell:p=>fmtBRL(p.liquido), red:true},
-        {header:'Saldo líquido', cell:p=>fmtBRL(p.saldoLiquido)},
-        {header:'Rentab. líq.', cell:p=>fmtPct(p.rentabLiquida)},
-      ],
-    });
-
     lastResultInvestimento = r;
+    atualizarFolhaImpressaoInvestimento();
   }
 
   $('btnCalcularInvestimento').addEventListener('click', ()=>{
     const r = calcularInvestimento();
-    if(!r){ alert('Informe o valor a investir e uma data de resgate futura.'); return; }
+    if(!r){ alert('Informe o valor a investir e uma data de resgate futura (ou preencha "Dias até o resgate").'); return; }
     renderInvestimento(r);
   });
 
+  $('investSelectPDF').addEventListener('change', atualizarFolhaImpressaoInvestimento);
+
   $('btnImprimirInvestimento').addEventListener('click', ()=>{
     imprimirSimulacao(!!lastResultInvestimento, ()=>$('btnCalcularInvestimento').click());
+    atualizarFolhaImpressaoInvestimento();
   });
 
   function nomeArquivoPDFInvestimento(){
     const r = lastResultInvestimento;
+    const sel = $('investSelectPDF').value;
     const valorStr = Math.round(r.valor).toLocaleString('pt-BR').replace(/\./g,'');
-    return `${slugNomeAssociado()}simulacao-investimentos-${valorStr}-${r.diasCorr}dias.pdf`;
+    const produtoStr = sel==='TODOS' ? 'comparativo' : slugTexto(r.produtos[Number(sel)].nome);
+    return `${slugNomeAssociado()}simulacao-investimentos-${produtoStr}-${valorStr}-${r.diasCorr}dias.pdf`;
   }
   $('btnBaixarInvestimento').addEventListener('click', async ()=>{
     if(!lastResultInvestimento){ $('btnCalcularInvestimento').click(); }
     if(!lastResultInvestimento) return;
+    atualizarFolhaImpressaoInvestimento();
     await gerarEBaixarPDF(nomeArquivoPDFInvestimento(), $('btnBaixarInvestimento'));
   });
 
-  // data de resgate padrão: hoje + 30 dias
+  // data de aplicação (hoje) e data de resgate padrão (30 dias), antes do config chegar
   (function initInvestimento(){
-    $('investDataResgate').value = toISODate(addDias(new Date(),30));
+    $('investDataAplicacaoView').value = fmtData(new Date());
+    $('investDiasResgate').value = 30;
+    atualizarResgatePorDias();
   })();
 
   // ============================================================
@@ -2966,14 +3121,18 @@
 
   function resetInvestimento(){
     $('investValor').value = '';
-    $('investDataResgate').value = toISODate(addDias(new Date(),30));
-    $('investSelic').value = '14.25';
-    $('investCdi').value = '14.15';
+    $('investDiasResgate').value = 30;
+    atualizarResgatePorDias();
+    $('investDataAplicacaoView').value = fmtData(new Date());
+    $('investSelic').value = '';
+    $('investCdi').value = '';
+    $('investSelicStatus').textContent = '';
     $('investPctCdiLca').value = '78';
     $('investPctCdiSicredinvest').value = '93';
     $('investTaxaPreSicredinvest').value = '9.04';
     $('investTaxaPreLca').value = '11.38';
     $('investTrPoupanca').value = '0.0911';
+    $('investSelectPDF').value = 'TODOS';
     $('resultsInvestimento').classList.add('hidden');
     lastResultInvestimento = null;
   }

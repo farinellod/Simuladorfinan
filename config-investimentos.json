@@ -1,0 +1,55 @@
+{
+  "_comentario": "Configuração do modo 'Simulação de Investimentos' do simulador. Editável sem mexer no index.html — salve este arquivo na MESMA pasta do index.html (mesmo lugar do config.json, se você já usa um) para que ele seja carregado automaticamente. Se este arquivo não existir ou tiver erro, o simulador usa os valores padrão já embutidos no código (os mesmos daqui).",
+
+  "parametrosPadrao": {
+    "_comentario": "Preenche os campos de 'Parâmetros por produto' quando a página abre. Todos em % a.a., exceto trPoupancaMensal (% a.m.) e diasResgatePadrao (dias corridos).",
+    "pctCdiLcaPos": 78,
+    "pctCdiSicredinvestPos": 93,
+    "taxaPreSicredinvestAA": 9.04,
+    "taxaPreLcaAA": 11.38,
+    "trPoupancaMensal": 0.0911,
+    "diasResgatePadrao": 30
+  },
+
+  "iofRegressivo30Dias": [
+    0.96, 0.93, 0.90, 0.86, 0.83, 0.80, 0.76, 0.73, 0.70, 0.66,
+    0.63, 0.60, 0.56, 0.53, 0.50, 0.46, 0.43, 0.40, 0.36, 0.33,
+    0.30, 0.26, 0.23, 0.20, 0.16, 0.13, 0.10, 0.06, 0.03, 0.00
+  ],
+
+  "irRegressivo": [
+    { "diasMin": 0,   "diasMax": 180, "aliquotaPct": 22.5 },
+    { "diasMin": 181, "diasMax": 360, "aliquotaPct": 20 },
+    { "diasMin": 361, "diasMax": 720, "aliquotaPct": 17.5 },
+    { "diasMin": 721, "diasMax": null, "aliquotaPct": 15 }
+  ],
+
+  "distribuicaoResultados": {
+    "_comentario": "Dados de captação/receita da agência usados para estimar a Distribuição de Resultados (sobras da cooperativa) de cada linha de produto. receitaCentralizadaBase e transferBase em R$ (totais da agência/cooperativa no produto); pctOperacao em % (participação daquela linha na receita operacional). Ajuste esses 3 números por produto conforme os relatórios internos da sua agência — os valores abaixo são os que já estavam na planilha de referência (simulador_de_rentabilidade_vanguarda.xls, linhas 48-51), então sirva-se deles só como ponto de partida.",
+    "poupanca": {
+      "receitaCentralizadaBase": 63911489.21,
+      "transferBase": 843462744.89,
+      "pctOperacao": 3
+    },
+    "lcaPosFixado": {
+      "receitaCentralizadaBase": 63911489.21,
+      "transferBase": 2297996749.89,
+      "pctOperacao": 7
+    },
+    "sicredinvestPosFixado": {
+      "receitaCentralizadaBase": 63911489.21,
+      "transferBase": 3834837160.13,
+      "pctOperacao": 27
+    },
+    "sicredinvestPreFixado": {
+      "receitaCentralizadaBase": 63911489.21,
+      "transferBase": 3834837160.13,
+      "pctOperacao": 27
+    },
+    "lcaPreFixado": {
+      "receitaCentralizadaBase": 63911489.21,
+      "transferBase": 2297996749.89,
+      "pctOperacao": 7
+    }
+  }
+}
