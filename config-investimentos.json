@@ -3,11 +3,11 @@
 
   "parametrosPadrao": {
     "_comentario": "Preenche os campos de 'Parâmetros por produto' quando a página abre. Todos em % a.a., exceto trPoupancaMensal (% a.m.) e diasResgatePadrao (dias corridos).",
-    "pctCdiLcaPos": 78,
-    "pctCdiSicredinvestPos": 93,
-    "taxaPreSicredinvestAA": 9.04,
-    "taxaPreLcaAA": 11.38,
-    "trPoupancaMensal": 0.0911,
+    "pctCdiLcaPos": 0,
+    "pctCdiSicredinvestPos": 0,
+    "taxaPreSicredinvestAA": 0,
+    "taxaPreLcaAA": 0,
+    "trPoupancaMensal": 0,
     "diasResgatePadrao": 30
   },
 
