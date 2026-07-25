@@ -994,13 +994,13 @@
           <label>Taxa pré-fixada a.a. — LCA Pré-Fixado</label>
           <input type="number" id="investTaxaPreLca" step="0.01" value="11.38">
         </div>
+        <div class="field" style="margin-top:0;">
+          <label>TR mensal aproximada da poupança (%)</label>
+          <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
+          <button type="button" class="btn-ghost" id="btnPuxarTRInvest" style="padding:8px 12px;font-size:13px;">Puxar TR mensal</button>
+          <p class="hint" id="investTRStatus"></p>
+        </div>
       </div>
-      <div class="field">
-        <label>TR mensal aproximada da poupança (%)</label>
-        <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
-      </div>
-      <button type="button" class="btn-ghost" id="btnPuxarTRInvest" style="padding:8px 12px;font-size:13px;">Puxar TR mensal</button>
-      <p class="hint" id="investTRStatus"></p>
       <p class="hint">Um produto só entra na simulação e fica disponível para seleção quando o parâmetro dele for maior que 0 — nos quatro produtos de cima (% do CDI / taxa pré) precisa ser ≥ 1; na Poupança, qualquer TR maior que 0 já é suficiente (deixe a TR em 0 pra tirar a Poupança da comparação também). O campo "Sicredinvest Pós COM TRAVA" só aparece — e, do lado do "Sem trava", só quando ativo — quando "Dias até o resgate" for ≥ 90; caso contrário os campos seguem normalmente, dois por linha.</p>
       <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR. Valores padrão vêm do config-investimentos.json quando disponível.</p>
     </section>
@@ -3146,6 +3146,10 @@
     const dataOk = dataAplicacaoAtual() && parseDataInput($('investDataResgate'));
     if(!valorOk || !dataOk){
       alert('Informe o valor a investir e uma data de resgate futura (ou preencha "Dias até o resgate").');
+      return;
+    }
+    if($('investSelic').value.trim()===''){
+      alert('Preencha a SELIC atual (% a.a.) em "Indexadores" — dá pra digitar na mão ou usar o botão "Puxar SELIC".');
       return;
     }
     const r = calcularInvestimento();
