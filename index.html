@@ -943,12 +943,12 @@
       </div>
       <div class="row2">
         <div class="field" style="margin-top:0;">
-          <label>Data de resgate</label>
-          <input type="date" id="investDataResgate">
-        </div>
-        <div class="field" style="margin-top:0;">
           <label>Data de aplicação</label>
           <input type="text" id="investDataAplicacaoView" value="" disabled style="opacity:.7;">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Data de resgate</label>
+          <input type="date" id="investDataResgate">
         </div>
       </div>
       <p class="hint">Preencha "Dias até o resgate" que a data de resgate é calculada a partir de hoje — ou selecione a data direto no campo ao lado (os dois ficam sincronizados). A data de aplicação é sempre hoje.</p>
@@ -1026,13 +1026,13 @@
         <div class="table-scroll">
           <table class="amort" id="tabelaInvestimento">
             <thead>
-              <tr><th>Imprimir</th><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Distrib. Resultados</th><th>Rend. líq. c/ result.</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
+              <tr><th><input type="checkbox" id="investSelecionarTudo" title="Selecionar/desmarcar todos"> Imprimir</th><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Distrib. Resultados</th><th>Rend. líq. c/ result.</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
             </thead>
             <tbody id="tabelaInvestimentoBody"></tbody>
           </table>
         </div>
         <p class="hint">Distribuição de Resultados é a estimativa de sobras da cooperativa, calculada a partir da participação do valor investido na receita/captação de referência de cada linha de produto (ajustável em config-investimentos.json). Rentabilidade líquida já descontada de IOF e IR, quando aplicável — não inclui a distribuição de resultados.</p>
-        <p class="hint">Desmarque "Imprimir" nas linhas que não quiser incluir na impressão/PDF — todos os produtos vêm marcados por padrão. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
+        <p class="hint">Marque "Imprimir" nas linhas que quiser incluir na impressão/PDF — por padrão só o Sicredinvest Pós-Fixado vem marcado. A checkbox no cabeçalho da coluna marca/desmarca todos de uma vez; dá pra ajustar manualmente linha por linha depois. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
 
         <div class="btn-row">
           <button class="btn-ghost" id="btnImprimirInvestimento">Imprimir simulação</button>
@@ -3032,8 +3032,9 @@
     let tbody = '';
     r.produtos.forEach((p,i)=>{
       const destaque = p===melhor ? ' style="color:var(--teal-dim);font-weight:700;"' : '';
+      const marcado = p.chave==='sicredinvestPosFixado' ? 'checked' : '';
       tbody += `<tr>
-        <td><input type="checkbox" class="invest-print-check" data-idx="${i}" checked></td>
+        <td><input type="checkbox" class="invest-print-check" data-idx="${i}" ${marcado}></td>
         <td${destaque}>${p.nome}</td>
         <td>${fmtBRL(p.bruto)}</td>
         <td>${p.isento? '—' : fmtBRL(p.iof)}</td>
@@ -3048,10 +3049,25 @@
     });
     $('tabelaInvestimentoBody').innerHTML = tbody;
     $('resultsInvestimento').classList.remove('hidden');
+    atualizarCheckboxSelecionarTudo();
 
     lastResultInvestimento = r;
     atualizarFolhaImpressaoInvestimento();
   }
+
+  // ---- checkbox "selecionar tudo" no cabeçalho da coluna Imprimir ----
+  // Reflete o estado atual (marcada só quando TODAS as linhas estiverem marcadas) e,
+  // ao ser clicada, marca/desmarca todas de uma vez — sempre dá pra ajustar manualmente depois.
+  function atualizarCheckboxSelecionarTudo(){
+    const checks = Array.from(document.querySelectorAll('.invest-print-check'));
+    const todasMarcadas = checks.length>0 && checks.every(c=>c.checked);
+    $('investSelecionarTudo').checked = todasMarcadas;
+  }
+  $('investSelecionarTudo').addEventListener('change', e=>{
+    const marcar = e.target.checked;
+    document.querySelectorAll('.invest-print-check').forEach(c=>{ c.checked = marcar; });
+    atualizarFolhaImpressaoInvestimento();
+  });
 
   $('btnCalcularInvestimento').addEventListener('click', ()=>{
     const r = calcularInvestimento();
@@ -3061,7 +3077,10 @@
 
   // recalcula a folha de impressão sempre que uma checkbox "Imprimir" for marcada/desmarcada
   $('tabelaInvestimentoBody').addEventListener('change', e=>{
-    if(e.target.classList.contains('invest-print-check')) atualizarFolhaImpressaoInvestimento();
+    if(e.target.classList.contains('invest-print-check')){
+      atualizarCheckboxSelecionarTudo();
+      atualizarFolhaImpressaoInvestimento();
+    }
   });
 
   $('btnImprimirInvestimento').addEventListener('click', ()=>{
