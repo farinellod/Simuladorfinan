@@ -1037,7 +1037,7 @@
           </table>
         </div>
         <p class="hint">Distribuição de Resultados é a estimativa de sobras da cooperativa, calculada a partir da participação do valor investido na receita/captação de referência de cada linha de produto (ajustável em config-investimentos.json). Rentabilidade líquida já descontada de IOF e IR, quando aplicável — não inclui a distribuição de resultados.</p>
-        <p class="hint">Marque "Imprimir" nas linhas que quiser incluir na impressão/PDF — por padrão só o Sicredinvest Pós-Fixado vem marcado. A checkbox no cabeçalho da coluna marca/desmarca todos de uma vez; dá pra ajustar manualmente linha por linha depois. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
+        <p class="hint">Marque "Imprimir" nas linhas que quiser incluir na impressão/PDF — por padrão, todos os produtos que entraram no cálculo já vêm marcados. A checkbox no cabeçalho da coluna marca/desmarca todos de uma vez; dá pra ajustar manualmente linha por linha depois. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
 
         <div class="btn-row">
           <button class="btn-ghost" id="btnImprimirInvestimento">Imprimir simulação</button>
@@ -3104,7 +3104,7 @@
     let tbody = '';
     r.produtos.forEach((p,i)=>{
       const destaque = p===melhor ? ' style="color:var(--teal-dim);font-weight:700;"' : '';
-      const marcado = p.chave==='sicredinvestPosFixado' ? 'checked' : '';
+      const marcado = 'checked';
       tbody += `<tr>
         <td><input type="checkbox" class="invest-print-check" data-idx="${i}" ${marcado}></td>
         <td${destaque}>${p.nome}</td>
