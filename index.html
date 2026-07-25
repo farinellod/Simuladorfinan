@@ -166,6 +166,7 @@
 
   #tabelaQuitacao th:first-child, #tabelaQuitacao td:first-child{width:44px;text-align:center;}
   #tabelaQuitacao input[type="checkbox"]{width:17px;height:17px;cursor:pointer;}
+  #tabelaInvestimento input[type="checkbox"]{width:17px;height:17px;cursor:pointer;}
 
   details.adv{margin-top:14px;}
   details.adv summary{
@@ -272,6 +273,10 @@
     #printSheet table tr{page-break-inside:avoid;break-inside:avoid;}
     #printSheet .p-cols table{flex:1 1 0;break-inside:avoid;}
     #printSheet .p-cols table:not(:first-child){border-left:1px solid #b9c2d4;padding-left:10px;}
+    #printSheet .p-pivot{font-size:var(--pivot-fs,7px);}
+    #printSheet .p-pivot th, #printSheet .p-pivot td{white-space:nowrap;text-align:center !important;font-size:var(--pivot-fs,7px);}
+    #printSheet .p-pivot th.row-label, #printSheet .p-pivot td.row-label{text-align:left !important;}
+    #printSheet .p-pivot th:not(:last-child), #printSheet .p-pivot td:not(:last-child){border-right:1px solid #b9c2d4;}
   }
 
   /* Renderização para o PDF baixado (fora do @media print, capturado por html2canvas) */
@@ -305,6 +310,10 @@
   #printSheet.print-render table tr.carencia td{color:#a86a00;}
   #printSheet.print-render .p-cols table{flex:1 1 0;}
   #printSheet.print-render .p-cols table:not(:first-child){border-left:1px solid #b9c2d4;padding-left:10px;}
+  #printSheet.print-render .p-pivot{font-size:var(--pivot-fs,7px);}
+  #printSheet.print-render .p-pivot th, #printSheet.print-render .p-pivot td{white-space:nowrap;text-align:center !important;font-size:var(--pivot-fs,7px);}
+  #printSheet.print-render .p-pivot th.row-label, #printSheet.print-render .p-pivot td.row-label{text-align:left !important;}
+  #printSheet.print-render .p-pivot th:not(:last-child), #printSheet.print-render .p-pivot td:not(:last-child){border-right:1px solid #b9c2d4;}
 </style>
 </head>
 <body>
@@ -1017,24 +1026,14 @@
         <div class="table-scroll">
           <table class="amort" id="tabelaInvestimento">
             <thead>
-              <tr><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Distrib. Resultados</th><th>Rend. líq. c/ result.</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
+              <tr><th>Imprimir</th><th>Produto</th><th>Rend. Bruto</th><th>IOF</th><th>IR</th><th>Rend. Líquido</th><th>Distrib. Resultados</th><th>Rend. líq. c/ result.</th><th>Saldo líquido</th><th>Rentab. líq.</th><th>% CDI líq.</th></tr>
             </thead>
             <tbody id="tabelaInvestimentoBody"></tbody>
           </table>
         </div>
         <p class="hint">Distribuição de Resultados é a estimativa de sobras da cooperativa, calculada a partir da participação do valor investido na receita/captação de referência de cada linha de produto (ajustável em config-investimentos.json). Rentabilidade líquida já descontada de IOF e IR, quando aplicável — não inclui a distribuição de resultados.</p>
+        <p class="hint">Desmarque "Imprimir" nas linhas que não quiser incluir na impressão/PDF — todos os produtos vêm marcados por padrão. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
 
-        <div class="field" style="margin-top:14px;">
-          <label>Produto para impressão/PDF</label>
-          <select id="investSelectPDF">
-            <option value="TODOS" selected>Todos os produtos</option>
-            <option value="0">Poupança (PF)</option>
-            <option value="1">LCA/LCI Pós-Fixado (PF)</option>
-            <option value="2">Sicredinvest Pós-Fixado</option>
-            <option value="3">Sicredinvest Pré-Fixado</option>
-            <option value="4">LCA Pré-Fixado</option>
-          </select>
-        </div>
         <div class="btn-row">
           <button class="btn-ghost" id="btnImprimirInvestimento">Imprimir simulação</button>
           <button class="btn-ghost" id="btnBaixarInvestimento">Baixar simulação (PDF)</button>
@@ -2936,36 +2935,92 @@
     return { valor, dataAplicacao, dataResgate, diasCorr, diasUt, produtos };
   }
 
+  // Métricas exibidas na folha de impressão/PDF (linhas da tabela pivotada) —
+  // mesma lista de colunas de antes, agora como linhas.
+  const LINHAS_METRICAS_INVEST = [
+    {header:'Rend. Bruto', cell:p=>fmtBRL(p.bruto)},
+    {header:'IOF', cell:p=>p.isento?'—':fmtBRL(p.iof)},
+    {header:'IR', cell:p=>p.isento?'—':fmtBRL(p.ir)},
+    {header:'Rend. Líquido', cell:p=>fmtBRL(p.liquido)},
+    {header:'Distrib. Resultados', cell:p=>fmtBRL(p.distribuicaoResultados)},
+    {header:'Rend. líq. c/ result.', cell:p=>fmtBRL(p.liquidoComResultados)},
+    {header:'Saldo líquido', cell:p=>fmtBRL(p.saldoLiquido)},
+    {header:'Rentab. líq.', cell:p=>fmtPct(p.rentabLiquida)},
+    {header:'% CDI líq.', cell:p=>fmtPct(p.pctCdiLiquido)},
+  ];
+
+  // Acha, por busca binária, a maior fonte (monoespaçada) que ainda cabe na
+  // largura útil da folha (196mm), somando a coluna de rótulos + 1 coluna por
+  // produto selecionado — cada coluna dimensionada pelo próprio conteúdo mais
+  // largo (produto x rótulos x valores), pra não quebrar linha em impressão/PDF.
+  function ajustarFontePivotInvestimento(produtos){
+    const CHAR_W = 0.62; // largura média de caractere ~ 0.62 * font-size, em fonte monoespaçada
+    const usableWidthMM = 196;
+    const usableWidthPX = usableWidthMM * 3.7795;
+    function largura(fs){
+      const padX = Math.max(1, fs*0.35)*2;
+      const labelW = Math.max(...LINHAS_METRICAS_INVEST.map(l=>l.header.length))*fs*CHAR_W + padX;
+      let colsW = 0;
+      produtos.forEach(p=>{
+        const textos = [p.nome, ...LINHAS_METRICAS_INVEST.map(l=>String(l.cell(p)))];
+        const maxLen = Math.max(...textos.map(t=>t.length));
+        colsW += maxLen*fs*CHAR_W + padX;
+      });
+      return labelW + colsW;
+    }
+    let lo = 5, hi = 13;
+    for(let k=0; k<40; k++){
+      const mid = (lo+hi)/2;
+      if(largura(mid) <= usableWidthPX) lo = mid; else hi = mid;
+    }
+    return lo;
+  }
+
+  function produtosSelecionadosParaImpressao(r){
+    const checks = Array.from(document.querySelectorAll('.invest-print-check'));
+    if(!checks.length) return r.produtos;
+    return r.produtos.filter((p,i)=>{
+      const chk = checks.find(c=>Number(c.dataset.idx)===i);
+      return chk ? chk.checked : true;
+    });
+  }
+
   function atualizarFolhaImpressaoInvestimento(){
     if(!lastResultInvestimento) return;
     const r = lastResultInvestimento;
-    const sel = $('investSelectPDF').value;
-    const produtosFiltrados = sel==='TODOS' ? r.produtos : [r.produtos[Number(sel)]];
+    const produtosFiltrados = produtosSelecionadosParaImpressao(r);
+    if(!produtosFiltrados.length) return;
 
+    const todos = produtosFiltrados.length===r.produtos.length;
+
+    // preenche associado/título/kpis pelo mecanismo normal — o "linhas"/"colunas"
+    // passados aqui não importam, pCols é sobrescrito logo abaixo pela tabela pivotada.
     preencherFolhaImpressao({
       sistema: 'Simulação de Investimentos',
-      sub: `Valor: ${fmtBRL(r.valor)} · Resgate em ${fmtData(r.dataResgate)} (${r.diasCorr} dc / ${r.diasUt} du)${sel!=='TODOS' ? ' · Produto: '+produtosFiltrados[0].nome : ''} · Gerado em ${fmtData(new Date())}`,
+      sub: `Valor: ${fmtBRL(r.valor)} · Resgate em ${fmtData(r.dataResgate)} (${r.diasCorr} dc / ${r.diasUt} du)${todos ? '' : ' · '+produtosFiltrados.length+' produto(s) selecionado(s)'} · Gerado em ${fmtData(new Date())}`,
       kpis: [
         {label:'Valor investido', value: fmtBRL(r.valor)},
         {label:'Prazo', value: `${r.diasCorr} dc / ${r.diasUt} du`},
         {label:'Data de resgate', value: fmtData(r.dataResgate)},
-        {label: sel==='TODOS'?'Produtos comparados':'Produto selecionado', value: sel==='TODOS'? String(r.produtos.length) : produtosFiltrados[0].nome},
+        {label:'Produtos na folha', value: String(produtosFiltrados.length)},
       ],
       extras: [],
       dedRows: [],
       linhas: produtosFiltrados,
-      colunas: [
-        {header:'Produto', cell:p=>p.nome},
-        {header:'Rend. Bruto', cell:p=>fmtBRL(p.bruto)},
-        {header:'IOF', cell:p=>p.isento?'—':fmtBRL(p.iof)},
-        {header:'IR', cell:p=>p.isento?'—':fmtBRL(p.ir)},
-        {header:'Rend. Líquido', cell:p=>fmtBRL(p.liquido), red:true},
-        {header:'Distrib. Resultados', cell:p=>fmtBRL(p.distribuicaoResultados)},
-        {header:'Rend. líq. c/ result.', cell:p=>fmtBRL(p.liquidoComResultados)},
-        {header:'Saldo líquido', cell:p=>fmtBRL(p.saldoLiquido)},
-        {header:'Rentab. líq.', cell:p=>fmtPct(p.rentabLiquida)},
-      ],
+      colunas: [{header:'Produto', cell:p=>p.nome}],
     });
+
+    // ---- tabela pivotada: produtos na horizontal (colunas), métricas na vertical (linhas) ----
+    const fs = ajustarFontePivotInvestimento(produtosFiltrados);
+    $('printSheet').style.setProperty('--pivot-fs', fs.toFixed(2)+'px');
+
+    let thead = '<tr><th class="row-label">Produto</th>' + produtosFiltrados.map(p=>`<th>${p.nome}</th>`).join('') + '</tr>';
+    let tbody = '';
+    LINHAS_METRICAS_INVEST.forEach(l=>{
+      tbody += `<tr><td class="row-label">${l.header}</td>` + produtosFiltrados.map(p=>`<td>${l.cell(p)}</td>`).join('') + '</tr>';
+    });
+    $('pCols').innerHTML = `<table class="p-pivot"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+    $('pCols').classList.remove('duas-colunas');
   }
 
   function renderInvestimento(r){
@@ -2975,9 +3030,10 @@
     $('investOutDataResgate').textContent = fmtData(r.dataResgate);
 
     let tbody = '';
-    r.produtos.forEach(p=>{
+    r.produtos.forEach((p,i)=>{
       const destaque = p===melhor ? ' style="color:var(--teal-dim);font-weight:700;"' : '';
       tbody += `<tr>
+        <td><input type="checkbox" class="invest-print-check" data-idx="${i}" checked></td>
         <td${destaque}>${p.nome}</td>
         <td>${fmtBRL(p.bruto)}</td>
         <td>${p.isento? '—' : fmtBRL(p.iof)}</td>
@@ -3003,23 +3059,34 @@
     renderInvestimento(r);
   });
 
-  $('investSelectPDF').addEventListener('change', atualizarFolhaImpressaoInvestimento);
+  // recalcula a folha de impressão sempre que uma checkbox "Imprimir" for marcada/desmarcada
+  $('tabelaInvestimentoBody').addEventListener('change', e=>{
+    if(e.target.classList.contains('invest-print-check')) atualizarFolhaImpressaoInvestimento();
+  });
 
   $('btnImprimirInvestimento').addEventListener('click', ()=>{
+    if(lastResultInvestimento && !produtosSelecionadosParaImpressao(lastResultInvestimento).length){
+      alert('Marque "Imprimir" em ao menos um produto da tabela.'); return;
+    }
     imprimirSimulacao(!!lastResultInvestimento, ()=>$('btnCalcularInvestimento').click());
     atualizarFolhaImpressaoInvestimento();
   });
 
   function nomeArquivoPDFInvestimento(){
     const r = lastResultInvestimento;
-    const sel = $('investSelectPDF').value;
+    const produtosFiltrados = produtosSelecionadosParaImpressao(r);
     const valorStr = Math.round(r.valor).toLocaleString('pt-BR').replace(/\./g,'');
-    const produtoStr = sel==='TODOS' ? 'comparativo' : slugTexto(r.produtos[Number(sel)].nome);
+    const produtoStr = produtosFiltrados.length===r.produtos.length
+      ? 'comparativo'
+      : (produtosFiltrados.length===1 ? slugTexto(produtosFiltrados[0].nome) : 'comparativo-parcial');
     return `${slugNomeAssociado()}simulacao-investimentos-${produtoStr}-${valorStr}-${r.diasCorr}dias.pdf`;
   }
   $('btnBaixarInvestimento').addEventListener('click', async ()=>{
     if(!lastResultInvestimento){ $('btnCalcularInvestimento').click(); }
     if(!lastResultInvestimento) return;
+    if(!produtosSelecionadosParaImpressao(lastResultInvestimento).length){
+      alert('Marque "Imprimir" em ao menos um produto da tabela.'); return;
+    }
     atualizarFolhaImpressaoInvestimento();
     await gerarEBaixarPDF(nomeArquivoPDFInvestimento(), $('btnBaixarInvestimento'));
   });
@@ -3132,7 +3199,6 @@
     $('investTaxaPreSicredinvest').value = '9.04';
     $('investTaxaPreLca').value = '11.38';
     $('investTrPoupanca').value = '0.0911';
-    $('investSelectPDF').value = 'TODOS';
     $('resultsInvestimento').classList.add('hidden');
     lastResultInvestimento = null;
   }
