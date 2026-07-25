@@ -973,17 +973,19 @@
 
     <section class="card">
       <p class="card-title">Parâmetros por produto</p>
-      <div class="row2">
-        <div class="field" style="margin-top:0;">
-          <label>% do CDI — LCA/LCI Pós-Fixado</label>
-          <input type="number" id="investPctCdiLca" step="0.01" value="78">
-        </div>
+      <div class="row2" id="gradeParametrosProduto">
         <div class="field" style="margin-top:0;">
           <label>% do CDI — Sicredinvest Pós SEM TRAVA</label>
           <input type="number" id="investPctCdiSicredinvest" step="0.01" value="93">
         </div>
-      </div>
-      <div class="row2">
+        <div class="field hidden" id="campoPctCdiComTravaWrap" style="margin-top:0;">
+          <label>% do CDI — Sicredinvest Pós COM TRAVA</label>
+          <input type="number" id="investPctCdiSicredinvestComTrava" step="0.01" value="0">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>% do CDI — LCA/LCI Pós-Fixado</label>
+          <input type="number" id="investPctCdiLca" step="0.01" value="78">
+        </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pré-fixada a.a. — Sicredinvest Pré-Fixado</label>
           <input type="number" id="investTaxaPreSicredinvest" step="0.01" value="9.04">
@@ -997,11 +999,9 @@
         <label>TR mensal aproximada da poupança (%)</label>
         <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
       </div>
-      <div class="field hidden" id="campoPctCdiComTravaWrap">
-        <label>% do CDI — Sicredinvest Pós COM TRAVA</label>
-        <input type="number" id="investPctCdiSicredinvestComTrava" step="0.01" value="0">
-      </div>
-      <p class="hint">Um produto só entra na simulação e fica disponível para seleção quando o parâmetro dele (% do CDI ou taxa pré) for ≥ 1. Deixe em 0 (ou menos) pra tirar o produto da comparação — a Poupança é a única exceção, sempre aparece. O campo "Sicredinvest Pós COM TRAVA" só aparece quando "Dias até o resgate" for ≥ 90.</p>
+      <button type="button" class="btn-ghost" id="btnPuxarTRInvest" style="padding:8px 12px;font-size:13px;">Puxar TR mensal</button>
+      <p class="hint" id="investTRStatus"></p>
+      <p class="hint">Um produto só entra na simulação e fica disponível para seleção quando o parâmetro dele for maior que 0 — nos quatro produtos de cima (% do CDI / taxa pré) precisa ser ≥ 1; na Poupança, qualquer TR maior que 0 já é suficiente (deixe a TR em 0 pra tirar a Poupança da comparação também). O campo "Sicredinvest Pós COM TRAVA" só aparece — e, do lado do "Sem trava", só quando ativo — quando "Dias até o resgate" for ≥ 90; caso contrário os campos seguem normalmente, dois por linha.</p>
       <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR. Valores padrão vêm do config-investimentos.json quando disponível.</p>
     </section>
 
@@ -2885,6 +2885,36 @@
     }
   });
 
+  // ---- Puxar TR mensal (Banco Central, série SGS 226 — TR, já em % a.m.) ----
+  async function buscarTRMensal(){
+    const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.226/dados/ultimos/1?formato=json`;
+    const resp = await fetch(url, { cache: 'no-store' });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const arr = await resp.json();
+    if(!Array.isArray(arr) || !arr.length) throw new Error('resposta vazia');
+    const item = arr[arr.length-1];
+    const valor = parseFloat(String(item.valor).replace(',','.'));
+    if(!isFinite(valor)) throw new Error('valor inválido');
+    return { valor, data: item.data };
+  }
+  $('btnPuxarTRInvest').addEventListener('click', async ()=>{
+    const btn = $('btnPuxarTRInvest');
+    const statusEl = $('investTRStatus');
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Buscando…';
+    statusEl.textContent = ''; statusEl.style.color = '';
+    try{
+      const { valor, data } = await buscarTRMensal();
+      $('investTrPoupanca').value = valor.toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+      statusEl.textContent = `TR vigente em ${data} = ${valor.toFixed(4)}% a.m. (fonte: Banco Central). Se vier 0, é porque a TR está mesmo zerada atualmente — a Poupança sai da comparação até você colocar um valor maior que 0 aqui. Pode editar na mão se quiser outro valor.`;
+    }catch(e){
+      statusEl.style.color = 'var(--rose)';
+      statusEl.textContent = 'Não consegui buscar a TR agora (sem internet ou API fora do ar). Preencha manualmente.';
+    }finally{
+      btn.disabled = false; btn.textContent = original;
+    }
+  });
+
   function calcularInvestimento(){
     const valor = parseMoeda($('investValor'));
     const dataAplicacao = dataAplicacaoAtual();
@@ -2905,7 +2935,8 @@
     const taxaPreSicred = rawTaxaPreSicred/100;
     const taxaPreLca = rawTaxaPreLca/100;
     const pctCdiSicredPosComTrava = rawPctCdiSicredPosComTrava/100;
-    const trPoupanca = (parseFloat($('investTrPoupanca').value)||0)/100;
+    const rawTrPoupanca = parseFloat($('investTrPoupanca').value)||0;
+    const trPoupanca = rawTrPoupanca/100;
 
     const diasCorr = diasCorridosInv(dataAplicacao, dataResgate);
     const diasUt = diasUteisInv(dataAplicacao, dataResgate);
@@ -2914,9 +2945,10 @@
 
     const produtos = [];
 
-    // Poupança (PF) — sempre isenta de IOF/IR, e sempre aparece (não tem "parâmetro
-    // de ativação" — TR = 0 é um valor real, não significa "produto desligado")
-    {
+    // Poupança (PF) — sempre isenta de IOF/IR; segue a mesma regra dos demais produtos,
+    // só que com limiar > 0 (não >= 1) porque a TR real é sempre um valor fracionário
+    // pequeno (ex.: 0,0911) — exigir >= 1 nunca deixaria a Poupança aparecer.
+    if(rawTrPoupanca>0){
       const taxaAnualProjetada = taxaPoupancaAnualInv(selic);
       const taxaMensal = (Math.pow(1+taxaAnualProjetada, 1/12)-1) + trPoupanca;
       const taxaAnualEfetiva = Math.pow(1+taxaMensal,12)-1;
@@ -2957,6 +2989,8 @@
       const bruto = valor*remuneracaoPeriodo(taxaPreLca);
       produtos.push({chave:'lcaPreFixado', nome:'LCA Pré-Fixado', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
+
+    if(!produtos.length) return null;
 
     const mesesAprox = Math.round(diasCorr/30);
     produtos.forEach(p=>{
@@ -3108,8 +3142,17 @@
   });
 
   $('btnCalcularInvestimento').addEventListener('click', ()=>{
+    const valorOk = parseMoeda($('investValor'));
+    const dataOk = dataAplicacaoAtual() && parseDataInput($('investDataResgate'));
+    if(!valorOk || !dataOk){
+      alert('Informe o valor a investir e uma data de resgate futura (ou preencha "Dias até o resgate").');
+      return;
+    }
     const r = calcularInvestimento();
-    if(!r){ alert('Informe o valor a investir e uma data de resgate futura (ou preencha "Dias até o resgate").'); return; }
+    if(!r){
+      alert('Nenhum produto ativo: em "Parâmetros por produto", ajuste pelo menos um (% do CDI, taxa pré ou TR da poupança) para um valor maior que 0.');
+      return;
+    }
     renderInvestimento(r);
   });
 
@@ -3257,6 +3300,7 @@
     $('investTaxaPreSicredinvest').value = '9.04';
     $('investTaxaPreLca').value = '11.38';
     $('investTrPoupanca').value = '0.0911';
+    $('investTRStatus').textContent = '';
     $('resultsInvestimento').classList.add('hidden');
     lastResultInvestimento = null;
   }
