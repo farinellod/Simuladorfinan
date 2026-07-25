@@ -2,9 +2,10 @@
   "_comentario": "Configuração do modo 'Simulação de Investimentos' do simulador. Editável sem mexer no index.html — salve este arquivo na MESMA pasta do index.html (mesmo lugar do config.json, se você já usa um) para que ele seja carregado automaticamente. Se este arquivo não existir ou tiver erro, o simulador usa os valores padrão já embutidos no código (os mesmos daqui).",
 
   "parametrosPadrao": {
-    "_comentario": "Preenche os campos de 'Parâmetros por produto' quando a página abre. Todos em % a.a., exceto trPoupancaMensal (% a.m.) e diasResgatePadrao (dias corridos).",
+    "_comentario": "Preenche os campos de 'Parâmetros por produto' quando a página abre. Todos em % a.a., exceto trPoupancaMensal (% a.m.) e diasResgatePadrao (dias corridos). Regra de ativação: um produto só entra na simulação (e fica selecionável) quando o parâmetro dele for >= 1 — deixe em 0 pra tirar o produto da comparação. A Poupança é a única exceção (sempre aparece). pctCdiSicredinvestPosComTrava só tem efeito quando o prazo simulado for >= 90 dias corridos (campo 'Dias até o resgate' na tela).",
     "pctCdiLcaPos": 0,
     "pctCdiSicredinvestPos": 0,
+    "pctCdiSicredinvestPosComTrava": 0,
     "taxaPreSicredinvestAA": 0,
     "taxaPreLcaAA": 0,
     "trPoupancaMensal": 0,
@@ -40,6 +41,11 @@
       "receitaCentralizadaBase": 63911489.21,
       "transferBase": 3834837160.13,
       "pctOperacao": 27
+    },
+    "sicredinvestPosComTrava": {
+      "receitaCentralizadaBase": 0,
+      "transferBase": 0,
+      "pctOperacao": 0
     },
     "sicredinvestPreFixado": {
       "receitaCentralizadaBase": 63911489.21,

@@ -944,14 +944,14 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>Data de aplicação</label>
-          <input type="text" id="investDataAplicacaoView" value="" disabled style="opacity:.7;">
+          <input type="date" id="investDataAplicacao" style="color:var(--rose);font-weight:700;">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Data de resgate</label>
           <input type="date" id="investDataResgate">
         </div>
       </div>
-      <p class="hint">Preencha "Dias até o resgate" que a data de resgate é calculada a partir de hoje — ou selecione a data direto no campo ao lado (os dois ficam sincronizados). A data de aplicação é sempre hoje.</p>
+      <p class="hint">Data de aplicação editável (em vermelho) — o padrão é hoje, mas dá pra simular uma aplicação retroativa ou futura. Mudar a data de aplicação mantém "Dias até o resgate" fixo e desloca a data de resgate junto; ou edite a data de resgate direto, que os dias se recalculam.</p>
     </section>
 
     <section class="card">
@@ -979,7 +979,7 @@
           <input type="number" id="investPctCdiLca" step="0.01" value="78">
         </div>
         <div class="field" style="margin-top:0;">
-          <label>% do CDI — Sicredinvest Pós-Fixado</label>
+          <label>% do CDI — Sicredinvest Pós SEM TRAVA</label>
           <input type="number" id="investPctCdiSicredinvest" step="0.01" value="93">
         </div>
       </div>
@@ -997,6 +997,11 @@
         <label>TR mensal aproximada da poupança (%)</label>
         <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
       </div>
+      <div class="field hidden" id="campoPctCdiComTravaWrap">
+        <label>% do CDI — Sicredinvest Pós COM TRAVA</label>
+        <input type="number" id="investPctCdiSicredinvestComTrava" step="0.01" value="0">
+      </div>
+      <p class="hint">Um produto só entra na simulação e fica disponível para seleção quando o parâmetro dele (% do CDI ou taxa pré) for ≥ 1. Deixe em 0 (ou menos) pra tirar o produto da comparação — a Poupança é a única exceção, sempre aparece. O campo "Sicredinvest Pós COM TRAVA" só aparece quando "Dias até o resgate" for ≥ 90.</p>
       <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR. Valores padrão vêm do config-investimentos.json quando disponível.</p>
     </section>
 
@@ -2778,6 +2783,7 @@
     poupanca:              { receitaCentralizadaBase: 63911489.21, transferBase: 843462744.89,  pctOperacao: 0.03 },
     lcaPosFixado:          { receitaCentralizadaBase: 63911489.21, transferBase: 2297996749.89, pctOperacao: 0.07 },
     sicredinvestPosFixado: { receitaCentralizadaBase: 63911489.21, transferBase: 3834837160.13, pctOperacao: 0.27 },
+    sicredinvestPosComTrava: { receitaCentralizadaBase: 0, transferBase: 0, pctOperacao: 0 },
     sicredinvestPreFixado: { receitaCentralizadaBase: 63911489.21, transferBase: 3834837160.13, pctOperacao: 0.27 },
     lcaPreFixado:          { receitaCentralizadaBase: 63911489.21, transferBase: 2297996749.89, pctOperacao: 0.07 },
   };
@@ -2793,6 +2799,7 @@
         const pp = cfg.parametrosPadrao;
         if(typeof pp.pctCdiLcaPos==='number') $('investPctCdiLca').value = pp.pctCdiLcaPos;
         if(typeof pp.pctCdiSicredinvestPos==='number') $('investPctCdiSicredinvest').value = pp.pctCdiSicredinvestPos;
+        if(typeof pp.pctCdiSicredinvestPosComTrava==='number') $('investPctCdiSicredinvestComTrava').value = pp.pctCdiSicredinvestPosComTrava;
         if(typeof pp.taxaPreSicredinvestAA==='number') $('investTaxaPreSicredinvest').value = pp.taxaPreSicredinvestAA;
         if(typeof pp.taxaPreLcaAA==='number') $('investTaxaPreLca').value = pp.taxaPreLcaAA;
         if(typeof pp.trPoupancaMensal==='number') $('investTrPoupanca').value = pp.trPoupancaMensal;
@@ -2824,21 +2831,35 @@
   }
   carregarConfigInvestimentos();
 
-  // ---- dias até o resgate ↔ data de resgate (sincronizados nos dois sentidos) ----
+  // ---- data de aplicação (editável) ↔ dias até o resgate ↔ data de resgate ----
+  // Base do cálculo agora é a "Data de aplicação" (editável, não mais fixa em hoje).
+  function dataAplicacaoAtual(){
+    return parseDataInput($('investDataAplicacao'));
+  }
+  // campo "% do CDI — Sicredinvest Pós COM TRAVA" só aparece com prazo >= 90 dias corridos
+  function atualizarVisibilidadeComTrava(){
+    const dias = parseInt($('investDiasResgate').value,10) || 0;
+    $('campoPctCdiComTravaWrap').classList.toggle('hidden', dias<90);
+  }
   function atualizarResgatePorDias(){
     const dias = parseInt($('investDiasResgate').value,10);
-    if(!dias || dias<1) return;
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    $('investDataResgate').value = toISODate(addDias(hoje,dias));
+    const base = dataAplicacaoAtual();
+    if(!dias || dias<1 || !base) return;
+    $('investDataResgate').value = toISODate(addDias(base,dias));
+    atualizarVisibilidadeComTrava();
   }
   function atualizarDiasPorResgate(){
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const base = dataAplicacaoAtual();
     const dataResgate = parseDataInput($('investDataResgate'));
-    if(!dataResgate || dataResgate<=hoje) return;
-    $('investDiasResgate').value = diasCorridosInv(hoje, dataResgate);
+    if(!base || !dataResgate || dataResgate<=base) return;
+    $('investDiasResgate').value = diasCorridosInv(base, dataResgate);
+    atualizarVisibilidadeComTrava();
   }
   $('investDiasResgate').addEventListener('input', atualizarResgatePorDias);
+  $('investDiasResgate').addEventListener('input', atualizarVisibilidadeComTrava);
   $('investDataResgate').addEventListener('input', atualizarDiasPorResgate);
+  // mudar a data de aplicação mantém "dias até o resgate" fixo e desloca a data de resgate junto
+  $('investDataAplicacao').addEventListener('input', atualizarResgatePorDias);
 
   // ---- Puxar SELIC (Banco Central, série SGS 432 — Meta Selic a.a.) ----
   // Preenche direto os campos anuais da simulação de investimentos (sem
@@ -2866,16 +2887,24 @@
 
   function calcularInvestimento(){
     const valor = parseMoeda($('investValor'));
-    const dataAplicacao = new Date(); dataAplicacao.setHours(0,0,0,0);
+    const dataAplicacao = dataAplicacaoAtual();
     const dataResgate = parseDataInput($('investDataResgate'));
-    if(!valor || !dataResgate || dataResgate<=dataAplicacao) return null;
+    if(!valor || !dataAplicacao || !dataResgate || dataResgate<=dataAplicacao) return null;
 
     const selic = (parseFloat($('investSelic').value)||0)/100;
     const cdi = (parseFloat($('investCdi').value)||0)/100;
-    const pctCdiLca = (parseFloat($('investPctCdiLca').value)||0)/100;
-    const pctCdiSicredPos = (parseFloat($('investPctCdiSicredinvest').value)||0)/100;
-    const taxaPreSicred = (parseFloat($('investTaxaPreSicredinvest').value)||0)/100;
-    const taxaPreLca = (parseFloat($('investTaxaPreLca').value)||0)/100;
+    // valores "crus" (sem dividir por 100) — usados também pra decidir se o produto entra
+    // na simulação: só entra quando o parâmetro dele for >= 1 (0 ou negativo = produto fora).
+    const rawPctCdiLca = parseFloat($('investPctCdiLca').value)||0;
+    const rawPctCdiSicredPos = parseFloat($('investPctCdiSicredinvest').value)||0;
+    const rawTaxaPreSicred = parseFloat($('investTaxaPreSicredinvest').value)||0;
+    const rawTaxaPreLca = parseFloat($('investTaxaPreLca').value)||0;
+    const rawPctCdiSicredPosComTrava = parseFloat($('investPctCdiSicredinvestComTrava').value)||0;
+    const pctCdiLca = rawPctCdiLca/100;
+    const pctCdiSicredPos = rawPctCdiSicredPos/100;
+    const taxaPreSicred = rawTaxaPreSicred/100;
+    const taxaPreLca = rawTaxaPreLca/100;
+    const pctCdiSicredPosComTrava = rawPctCdiSicredPosComTrava/100;
     const trPoupanca = (parseFloat($('investTrPoupanca').value)||0)/100;
 
     const diasCorr = diasCorridosInv(dataAplicacao, dataResgate);
@@ -2885,7 +2914,8 @@
 
     const produtos = [];
 
-    // Poupança (PF) — sempre isenta de IOF/IR
+    // Poupança (PF) — sempre isenta de IOF/IR, e sempre aparece (não tem "parâmetro
+    // de ativação" — TR = 0 é um valor real, não significa "produto desligado")
     {
       const taxaAnualProjetada = taxaPoupancaAnualInv(selic);
       const taxaMensal = (Math.pow(1+taxaAnualProjetada, 1/12)-1) + trPoupanca;
@@ -2894,28 +2924,36 @@
       produtos.push({chave:'poupanca', nome:'Poupança (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
     // LCA/LCI Pós-Fixado (PF) — sempre isenta
-    {
+    if(rawPctCdiLca>=1){
       const taxaAnual = pctCdiLca*cdi;
       const bruto = valor*remuneracaoPeriodo(taxaAnual);
       produtos.push({chave:'lcaPosFixado', nome:'LCA/LCI Pós-Fixado (PF)', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
-    // Sicredinvest Pós-Fixado — RDC, tributado
-    {
+    // Sicredinvest Pós SEM TRAVA — RDC, tributado
+    if(rawPctCdiSicredPos>=1){
       const taxaAnual = pctCdiSicredPos*cdi;
       const bruto = valor*remuneracaoPeriodo(taxaAnual);
       const iof = (-iofRegressivoInv(diasCorr)*bruto) + 0;
       const ir = (-(bruto+iof)*irRegressivoInv(diasCorr)) + 0;
-      produtos.push({chave:'sicredinvestPosFixado', nome:'Sicredinvest Pós-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
+      produtos.push({chave:'sicredinvestPosFixado', nome:'Sicredinvest Pós SEM TRAVA', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
+    }
+    // Sicredinvest Pós COM TRAVA — RDC, tributado; só disponível com prazo >= 90 dias corridos
+    if(diasCorr>=90 && rawPctCdiSicredPosComTrava>=1){
+      const taxaAnual = pctCdiSicredPosComTrava*cdi;
+      const bruto = valor*remuneracaoPeriodo(taxaAnual);
+      const iof = (-iofRegressivoInv(diasCorr)*bruto) + 0;
+      const ir = (-(bruto+iof)*irRegressivoInv(diasCorr)) + 0;
+      produtos.push({chave:'sicredinvestPosComTrava', nome:'Sicredinvest Pós COM TRAVA', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
     }
     // Sicredinvest Pré-Fixado — RDC, tributado
-    {
+    if(rawTaxaPreSicred>=1){
       const bruto = valor*remuneracaoPeriodo(taxaPreSicred);
       const iof = (-iofRegressivoInv(diasCorr)*bruto) + 0;
       const ir = (-(bruto+iof)*irRegressivoInv(diasCorr)) + 0;
       produtos.push({chave:'sicredinvestPreFixado', nome:'Sicredinvest Pré-Fixado', bruto, iof, ir, liquido:bruto+iof+ir, isento:false});
     }
     // LCA Pré-Fixado — sempre isenta
-    {
+    if(rawTaxaPreLca>=1){
       const bruto = valor*remuneracaoPeriodo(taxaPreLca);
       produtos.push({chave:'lcaPreFixado', nome:'LCA Pré-Fixado', bruto, iof:0, ir:0, liquido:bruto, isento:true});
     }
@@ -3110,9 +3148,9 @@
     await gerarEBaixarPDF(nomeArquivoPDFInvestimento(), $('btnBaixarInvestimento'));
   });
 
-  // data de aplicação (hoje) e data de resgate padrão (30 dias), antes do config chegar
+  // data de aplicação (hoje, editável) e data de resgate padrão (30 dias), antes do config chegar
   (function initInvestimento(){
-    $('investDataAplicacaoView').value = fmtData(new Date());
+    $('investDataAplicacao').value = toISODate(new Date());
     $('investDiasResgate').value = 30;
     atualizarResgatePorDias();
   })();
@@ -3207,14 +3245,15 @@
 
   function resetInvestimento(){
     $('investValor').value = '';
+    $('investDataAplicacao').value = toISODate(new Date());
     $('investDiasResgate').value = 30;
     atualizarResgatePorDias();
-    $('investDataAplicacaoView').value = fmtData(new Date());
     $('investSelic').value = '';
     $('investCdi').value = '';
     $('investSelicStatus').textContent = '';
     $('investPctCdiLca').value = '78';
     $('investPctCdiSicredinvest').value = '93';
+    $('investPctCdiSicredinvestComTrava').value = '0';
     $('investTaxaPreSicredinvest').value = '9.04';
     $('investTaxaPreLca').value = '11.38';
     $('investTrPoupanca').value = '0.0911';
