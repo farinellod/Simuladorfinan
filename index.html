@@ -865,7 +865,7 @@
           <button type="button" data-val="CAPITALIZA" class="active">Capitaliza (sem cobrança)</button>
           <button type="button" data-val="SOJUROS">Paga só os juros</button>
         </div>
-        <p class="hint">Mesma carência das abas Empréstimo/Renegociação: prazo 60 + carência 5 → 1ª parcela vence 5 meses após a liberação, com 55 parcelas ao todo. Em <b>Capitaliza</b>, os meses de carência só capitalizam juros, sem cobrança, e a parcela é nivelada sobre o saldo já capitalizado — é o PRICE padrão do banco, e o cálculo é exatamente o mesmo motor da aba Empréstimo. Em <b>Paga só os juros</b>, as parcelas de carência são cobradas como juros puro e o principal fica intacto até a amortização começar — formato de vários contratos de capital de giro de outros bancos.</p>
+        <p class="hint"><b>Capitaliza (sem cobrança)</b> — os meses de carência não são cobrados, só capitalizam juros, e por isso <b>não viram parcela na tabela</b>: prazo 60 + carência 6 → 54 parcelas. É o PRICE padrão do banco, e usa exatamente o mesmo motor da aba Empréstimo.<br><b>Paga só os juros</b> — as parcelas de carência <b>são cobradas</b> (juros puro, principal intacto), então <b>contam como parcela na tabela</b>: informe o prazo como o total de parcelas do contrato. Ex.: contrato de 54 parcelas com as 5 primeiras só de juros → prazo 54, carência 5. É o formato de vários contratos de capital de giro de outros bancos — se o extrato do contrato mostra pagamento nos primeiros meses com amortização 0,00, é este o modo.</p>
       </div>
 
       <p class="hint">Parcelas com vencimento até a data de quitação já estão vencidas: mostram apenas o valor cheio da parcela, sem desconto. Parcelas a vencer mostram o valor descontado (valor presente na data de quitação, pela taxa contratada).</p>
@@ -2512,7 +2512,19 @@
     return Math.max(0, Math.round(parseFloat($('quitCarencia').value)||0));
   }
   function atualizarResumoCarenciaQuitacao(){
-    $('quitCarenciaResumo').textContent = textoResumoCarencia(parseFloat($('quitPrazo').value), quitCarenciaValor());
+    const prazo = Math.max(0, Math.round(parseFloat($('quitPrazo').value)||0));
+    const c = quitCarenciaValor();
+    const el = $('quitCarenciaResumo');
+    if(prazo<=0){ el.textContent = ''; return; }
+    if(c<=0){ el.textContent = `Crédito em ${prazo}x, sem carência — ${prazo} parcelas na tabela.`; return; }
+    const amortizando = Math.max(0, prazo - c);
+    if(quitTipoCarencia==='SOJUROS'){
+      // aqui os meses de carência SÃO cobrados, então viram linhas da tabela
+      el.textContent = `${c} parcelas só de juros + ${amortizando} amortizando = ${prazo} parcelas na tabela.`;
+    } else {
+      // capitaliza: nada é pago na carência, então esses meses não viram linha
+      el.textContent = `Crédito em ${amortizando}x + ${c} de carência (sem cobrança) = total de ${prazo} meses — ${amortizando} parcelas na tabela.`;
+    }
   }
 
   let quitPrimeiraParcelaEditadaManualmente = false;
@@ -2525,7 +2537,7 @@
     const lib = parseDataQuitCampo('quitDataLiberacao') || new Date();
     return toISODate(addMonths(lib, Math.max(quitCarenciaValor(), 1)));
   }
-  bindSeg('seg-quitTipoCarencia', v=>{ quitTipoCarencia = v; });
+  bindSeg('seg-quitTipoCarencia', v=>{ quitTipoCarencia = v; atualizarResumoCarenciaQuitacao(); });
   $('quitCarencia').addEventListener('input', ()=>{
     atualizarResumoCarenciaQuitacao();
     autoPreencherPrimeiraParcelaQuitacao();
