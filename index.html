@@ -857,6 +857,12 @@
           <input type="date" id="quitDataQuitacao">
         </div>
       </div>
+      <div class="field">
+        <label>Parcelas só de juros no início (carência de amortização)</label>
+        <input type="number" id="quitCarenciaJuros" min="0" step="1" value="0">
+      </div>
+      <p class="hint">Use quando o contrato tem carência de amortização: as N primeiras parcelas pagam só os juros e o principal fica intacto, e a tabela PRICE começa a amortizar depois delas (é o caso de vários contratos de capital de giro). Deixe 0 para uma PRICE normal, amortizando desde a 1ª parcela.</p>
+
       <p class="hint">Parcelas com vencimento até a data de quitação já estão vencidas: mostram apenas o valor cheio da parcela, sem desconto. Parcelas a vencer mostram o valor descontado (valor presente na data de quitação, pela taxa contratada).</p>
     </section>
 
@@ -2521,6 +2527,47 @@
     if(p>120){ $('quitPrazo').value = 120; }
   });
 
+  // Tabela com CARÊNCIA DE AMORTIZAÇÃO: as C primeiras parcelas pagam só os juros
+  // (principal intacto) e a PRICE amortiza nas (prazo − C) restantes, sobre o
+  // principal cheio. Diferente da "carência" da aba Empréstimo (modelo Sicredi), em
+  // que nada é pago no período e os juros capitalizam no VP. Só é usada quando o
+  // usuário informa C > 0 — com C = 0 o motor original continua sendo usado, intacto.
+  function gerarTabelaQuitacaoCarenciaJuros(principal, taxaMensal, prazo, carenciaJuros, dataLiberacao, dataPrimeira){
+    const i = taxaMensal/100;
+    const nAmort = prazo - carenciaJuros;
+    const dataParcela = (m) => dataPrimeira
+      ? addMonths(dataPrimeira, m-1)
+      : addMonths(dataLiberacao, m);
+
+    const data1a = dataParcela(1);
+    const diasAte1a = Math.round((data1a - dataLiberacao)/86400000);
+    // 1ª parcela cobre os dias corridos reais desde a liberação; as demais, 1 mês cheio.
+    const jurosCarencia = (m) => (m===1)
+      ? principal * (Math.pow(1+i, diasAte1a/30) - 1)
+      : principal * i;
+
+    const linhas = [];
+    for(let m=1; m<=carenciaJuros && m<=prazo; m++){
+      const juros = jurosCarencia(m);
+      linhas.push({n:m, data: dataParcela(m), parcela: juros, juros, amort: 0, saldo: principal, carencia:false, gracaPrice:true});
+    }
+    if(nAmort > 0){
+      const pmt = i===0 ? principal/nAmort : principal*i/(1-Math.pow(1+i,-nAmort));
+      let saldo = principal;
+      for(let k=1; k<=nAmort; k++){
+        const m = carenciaJuros + k;
+        // se não há carência, a 1ª parcela ainda reflete os dias corridos até ela
+        const juros = (m===1) ? principal*(Math.pow(1+i, diasAte1a/30)-1) : saldo*i;
+        let amort = pmt - juros;
+        let saldoNovo = saldo - amort;
+        if(k===nAmort){ amort = saldo; saldoNovo = 0; }
+        linhas.push({n:m, data: dataParcela(m), parcela: pmt, juros, amort, saldo: Math.max(0,saldoNovo), carencia:false, gracaPrice:false});
+        saldo = saldoNovo;
+      }
+    }
+    return linhas;
+  }
+
   function calcularQuitacao(){
     const valorFinanciado = parseMoeda($('quitValorFinanciado'));
     const taxaMensal = parseFloat($('quitTaxaMensal').value)||0;
@@ -2528,11 +2575,16 @@
     const dataPrimeira = parseDataQuitCampo('quitDataPrimeiraParcela');
     let prazo = Math.round(parseFloat($('quitPrazo').value)||1);
     prazo = Math.min(120, Math.max(1, prazo));
+    let carenciaJuros = Math.round(parseFloat($('quitCarenciaJuros').value)||0);
+    carenciaJuros = Math.min(Math.max(0, carenciaJuros), prazo-1<0?0:prazo-1);
     const dataQuitacao = parseDataQuitCampo('quitDataQuitacao');
     if(valorFinanciado<=0 || !dataQuitacao) return null;
 
-    // mesma função PRICE usada na aba Empréstimo/Renegociação; sem carência aqui.
-    const linhasBase = gerarTabela(valorFinanciado, taxaMensal, prazo, 0, 'PRICE', dataLiberacao, dataPrimeira);
+    // C = 0 → motor PRICE original da aba Empréstimo/Renegociação (comportamento inalterado).
+    // C > 0 → tabela com parcelas iniciais só de juros.
+    const linhasBase = carenciaJuros>0
+      ? gerarTabelaQuitacaoCarenciaJuros(valorFinanciado, taxaMensal, prazo, carenciaJuros, dataLiberacao, dataPrimeira)
+      : gerarTabela(valorFinanciado, taxaMensal, prazo, 0, 'PRICE', dataLiberacao, dataPrimeira);
     const i = taxaMensal/100;
 
     // referência para o desconto de antecipação: o sistema oficial NÃO conta os dias
@@ -2558,7 +2610,7 @@
       return { ...l, jaVencida, valorQuitacao };
     });
 
-    return { valorFinanciado, taxaMensal, dataLiberacao, dataPrimeira, prazo, dataQuitacao, linhas, economiaTotal, totalQuitacaoGeral, qtdVencidas };
+    return { valorFinanciado, taxaMensal, dataLiberacao, dataPrimeira, prazo, carenciaJuros, dataQuitacao, linhas, economiaTotal, totalQuitacaoGeral, qtdVencidas };
   }
 
   // conjunto com os números das parcelas atualmente incluídas no total de quitação.
@@ -2577,7 +2629,7 @@
   function montarExtrasImpressaoQuitacao(r, total, economia){
     preencherFolhaImpressao({
       sistema: 'PRICE — Quitação Antecipada',
-      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses · Quitação em ${fmtData(r.dataQuitacao)} · Gerado em ${fmtData(new Date())}`,
+      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses${r.carenciaJuros>0 ? ' ('+r.carenciaJuros+' só de juros)' : ''} · Quitação em ${fmtData(r.dataQuitacao)} · Gerado em ${fmtData(new Date())}`,
       kpis: [
         {label:'Valor financiado', value: fmtBRL(r.valorFinanciado)},
         {label:'Prazo', value: r.prazo + ' meses'},
@@ -3295,6 +3347,7 @@
     quitPrimeiraParcelaEditadaManualmente = false;
     autoPreencherPrimeiraParcelaQuitacao();
     $('quitPrazo').value = '';
+    $('quitCarenciaJuros').value = '0';
     $('quitDataQuitacao').value = toISODate(new Date());
     $('resultsQuitacao').classList.add('hidden');
     lastResultQuitacao = null;
