@@ -968,7 +968,7 @@
       </div>
       <button type="button" class="btn-ghost btn-indexador-invest" id="btnPuxarSelicInvest" style="padding:8px 12px;font-size:13px;">Puxar SELIC</button>
       <p class="hint" id="investSelicStatus"></p>
-      <p class="hint">Dias úteis contam feriados nacionais (fixos e móveis) e fins de semana, igual ao NETWORKDAYS da planilha.</p>
+      <p class="hint">Dias úteis contam feriados nacionais (fixos e móveis) e fins de semana, igual ao NETWORKDAYS da planilha. Se o "Puxar SELIC" não conseguir buscar no Banco Central, ele usa o valor de referência configurado em config-investimentos.json.</p>
     </section>
 
     <section class="card">
@@ -2788,6 +2788,9 @@
     lcaPreFixado:          { receitaCentralizadaBase: 63911489.21, transferBase: 2297996749.89, pctOperacao: 0.07 },
   };
 
+  // usado pelo botão "Puxar SELIC" quando a busca no Banco Central falhar
+  let SELIC_FALLBACK_ANUAL = 14.25;
+
   // ---------- configuração externa (config-investimentos.json) ----------
   async function carregarConfigInvestimentos(){
     try{
@@ -2795,6 +2798,9 @@
       if(!resp.ok) return;
       const cfg = await resp.json();
 
+      if(cfg.indexadoresFallback && typeof cfg.indexadoresFallback.selicAnualPct==='number'){
+        SELIC_FALLBACK_ANUAL = cfg.indexadoresFallback.selicAnualPct;
+      }
       if(cfg.parametrosPadrao){
         const pp = cfg.parametrosPadrao;
         if(typeof pp.pctCdiLcaPos==='number') $('investPctCdiLca').value = pp.pctCdiLcaPos;
@@ -2878,8 +2884,12 @@
       $('investCdi').value = cdiAno.toFixed(2);
       statusEl.textContent = `SELIC vigente em ${data} = ${metaSelicAno.toFixed(2)}% a.a. (fonte: Banco Central). CDI estimado = SELIC − 0,10 p.p. = ${cdiAno.toFixed(2)}% a.a. Pode editar na mão se quiser outro valor.`;
     }catch(e){
+      const metaSelicAno = SELIC_FALLBACK_ANUAL;
+      const cdiAno = metaSelicAno - 0.10;
+      $('investSelic').value = metaSelicAno.toFixed(2);
+      $('investCdi').value = cdiAno.toFixed(2);
       statusEl.style.color = 'var(--rose)';
-      statusEl.textContent = 'Não consegui buscar a Meta Selic agora (sem internet ou API fora do ar). Preencha manualmente.';
+      statusEl.textContent = `Não consegui buscar a Meta Selic agora (sem internet ou API fora do ar) — usando o valor de referência do config-investimentos.json: SELIC = ${metaSelicAno.toFixed(2)}% a.a. CDI estimado = SELIC − 0,10 p.p. = ${cdiAno.toFixed(2)}% a.a. Pode editar na mão se quiser outro valor.`;
     }finally{
       btn.disabled = false; btn.textContent = original;
     }

@@ -1,6 +1,11 @@
 {
   "_comentario": "Configuração do modo 'Simulação de Investimentos' do simulador. Editável sem mexer no index.html — salve este arquivo na MESMA pasta do index.html (mesmo lugar do config.json, se você já usa um) para que ele seja carregado automaticamente. Se este arquivo não existir ou tiver erro, o simulador usa os valores padrão já embutidos no código (os mesmos daqui).",
 
+  "indexadoresFallback": {
+    "_comentario": "Usado pelo botão 'Puxar SELIC' só quando a busca no Banco Central falhar (sem internet, API fora do ar, etc.). Preencha selicAnualPct com a Meta Selic atual (% a.a.) — atualize aqui de vez em quando pra esse fallback não ficar desatualizado. O CDI é sempre calculado a partir dela como SELIC − 0,10 p.p., igual quando a busca dá certo.",
+    "selicAnualPct": 14.25
+  },
+
   "parametrosPadrao": {
     "_comentario": "Preenche os campos de 'Parâmetros por produto' quando a página abre. Todos em % a.a., exceto trPoupancaMensal (% a.m.) e diasResgatePadrao (dias corridos). Regra de ativação: um produto só entra na simulação (e fica selecionável) quando o parâmetro dele for >= 1 — deixe em 0 pra tirar o produto da comparação. A Poupança é a única exceção (sempre aparece). pctCdiSicredinvestPosComTrava só tem efeito quando o prazo simulado for >= 90 dias corridos (campo 'Dias até o resgate' na tela).",
     "pctCdiLcaPos": 0,
