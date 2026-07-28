@@ -1820,15 +1820,52 @@
       .replace(/^-+|-+$/g,'');
     return slug ? slug + '-' : '';
   }
+
+  // ---------- nome do arquivo PDF ----------
+  // Ordem padrão em todos os modos:
+  //   nome · valor · prazo · com/sem seguro · FGI ou FAMPE (some se não houver) · líquido/bruto
+  // Cada modo passa só as partes que existem nele — as vazias são puladas.
+  function montarNomePDF(partes){
+    const limpo = partes
+      .filter(p => p!==null && p!==undefined && String(p).trim()!=='')
+      .map(p => String(p)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g,'-')
+        .replace(/^-+|-+$/g,''))
+      .filter(Boolean);
+    return (limpo.join('-') || 'simulacao') + '.pdf';
+  }
+  function nomeAssociadoParaArquivo(){
+    return ($('nomeAssociado').value || '').trim();
+  }
+  function valorParaArquivo(v){
+    return Math.round(v||0).toLocaleString('pt-BR').replace(/\./g,'');
+  }
+  // só entra no nome quando a comissão de aval está ativa
+  function fundoParaArquivo(){
+    if(!$('comissaoAtiva').checked) return '';
+    if(fundo==='FAMPE') return 'fampe';
+    if(fundo==='FAMPE_MULHER') return 'fampe mulher';
+    return 'fgi';
+  }
+
+  // só entra no nome quando existe carência (0 = pula)
+  function carenciaParaArquivo(c){
+    return (c>0) ? ('carencia ' + c + 'meses') : '';
+  }
+
   function nomeArquivoPDF(){
     const r = lastResult;
-    // valor: usa o valor informado (bruto ou líquido) sem centavos, em milhares quando redondo
-    const valor = Math.round(r.valorInformado || r.bruto);
-    const valorStr = valor.toLocaleString('pt-BR').replace(/\./g,'');
-    const prazoStr = r.prazo + 'meses';
-    const seguroStr = r.seguroAtivo ? 'comseguro' : 'semseguro';
-    const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
-    return `${slugNomeAssociado()}${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      valorParaArquivo(r.valorInformado || r.bruto),
+      r.prazo + 'meses',
+      carenciaParaArquivo(r.carencia),
+      r.seguroAtivo ? 'com seguro' : 'sem seguro',
+      fundoParaArquivo(),
+      r.tipoValor==='LIQUIDO' ? 'liquido' : 'bruto',
+    ]);
   }
 
   // Gera e baixa o PDF a partir do #printSheet já preenchido (reutilizável por
@@ -2234,9 +2271,12 @@
 
   function nomeArquivoPDFDesconto(){
     const r = lastResultDesconto;
-    const valorStr = Math.round(r.valorBordero).toLocaleString('pt-BR').replace(/\./g,'');
-    const qtdStr = r.linhas.length + 'titulos';
-    return `${slugNomeAssociado()}desconto-titulos-${valorStr}-${qtdStr}.pdf`;
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      'desconto titulos',
+      valorParaArquivo(r.valorBordero),
+      r.linhas.length + 'titulos',
+    ]);
   }
   $('btnBaixarDesconto').addEventListener('click', async ()=>{
     if(!lastResultDesconto){ $('btnCalcularDesconto').click(); }
@@ -2493,11 +2533,14 @@
 
   function nomeArquivoPDFReneg(){
     const r = lastResultReneg;
-    const valorStr = Math.round(r.valorFinanciar).toLocaleString('pt-BR').replace(/\./g,'');
-    const prazoStr = r.prazo + 'meses';
-    const seguroStr = r.ded.prestamistaAtiva ? 'comseguro' : 'semseguro';
-    const carenciaStr = r.carencia > 0 ? '-comcarencia' : '';
-    return `${slugNomeAssociado()}renegociacao-${valorStr}-${prazoStr}-${seguroStr}${carenciaStr}.pdf`;
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      'renegociacao',
+      valorParaArquivo(r.valorFinanciar),
+      r.prazo + 'meses',
+      carenciaParaArquivo(r.carencia),
+      r.ded.prestamistaAtiva ? 'com seguro' : 'sem seguro',
+    ]);
   }
   $('btnBaixarReneg').addEventListener('click', async ()=>{
     if(!lastResultReneg){ $('btnCalcularReneg').click(); }
@@ -2777,9 +2820,13 @@
 
   function nomeArquivoPDFQuitacao(){
     const r = lastResultQuitacao;
-    const valorStr = Math.round(r.valorFinanciado).toLocaleString('pt-BR').replace(/\./g,'');
-    const prazoStr = r.prazo + 'meses';
-    return `${slugNomeAssociado()}quitacao-antecipada-price-${valorStr}-${prazoStr}.pdf`;
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      'quitacao antecipada price',
+      valorParaArquivo(r.valorFinanciado),
+      r.prazo + 'meses',
+      carenciaParaArquivo(r.carencia),
+    ]);
   }
   $('btnBaixarQuitacao').addEventListener('click', async ()=>{
     if(!lastResultQuitacao){ $('btnCalcularQuitacao').click(); }
@@ -3300,11 +3347,16 @@
   function nomeArquivoPDFInvestimento(){
     const r = lastResultInvestimento;
     const produtosFiltrados = produtosSelecionadosParaImpressao(r);
-    const valorStr = Math.round(r.valor).toLocaleString('pt-BR').replace(/\./g,'');
     const produtoStr = produtosFiltrados.length===r.produtos.length
       ? 'comparativo'
-      : (produtosFiltrados.length===1 ? slugTexto(produtosFiltrados[0].nome) : 'comparativo-parcial');
-    return `${slugNomeAssociado()}simulacao-investimentos-${produtoStr}-${valorStr}-${r.diasCorr}dias.pdf`;
+      : (produtosFiltrados.length===1 ? produtosFiltrados[0].nome : 'comparativo parcial');
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      'simulacao investimentos',
+      produtoStr,
+      valorParaArquivo(r.valor),
+      r.diasCorr + 'dias',
+    ]);
   }
   $('btnBaixarInvestimento').addEventListener('click', async ()=>{
     if(!lastResultInvestimento){ $('btnCalcularInvestimento').click(); }
