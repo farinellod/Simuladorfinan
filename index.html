@@ -489,6 +489,25 @@
       </div>
       <p class="hint" id="prestamistaFaixaHint">Informe a data de nascimento — a taxa é definida automaticamente pela faixa etária na data de liberação.</p>
     </div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="tlabel">Demais tarifas</div>
+        <div class="tdesc">Valor livre — ex.: taxa de alienação</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="demaisTarifasAtiva">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="sub-panel hidden" id="demaisTarifasPanel">
+      <div class="field" style="margin-top:0;">
+        <label>Valor das demais tarifas (R$)</label>
+        <input type="text" id="demaisTarifasValor" inputmode="decimal" placeholder="0,00" value="">
+      </div>
+      <button type="button" class="btn-ghost" id="btnAlienacao" style="padding:8px 12px;font-size:13px;">Alienação</button>
+      <p class="hint" id="demaisTarifasHint">Digite o valor na mão ou use o botão para preencher a taxa de alienação. O valor entra nas deduções junto com a tarifa de cadastro.</p>
+    </div>
   </section>
 
   <button class="btn-primary" id="btnCalcular">Calcular simulação</button>
@@ -673,6 +692,25 @@
           <input type="date" id="renegPrestamistaNascimento">
         </div>
         <p class="hint">A taxa é definida automaticamente pela faixa etária na data de liberação.</p>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">Demais tarifas</div>
+          <div class="tdesc">Valor livre — ex.: taxa de alienação</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="renegDemaisTarifasAtiva">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="sub-panel hidden" id="renegDemaisTarifasPanel">
+        <div class="field" style="margin-top:0;">
+          <label>Valor das demais tarifas (R$)</label>
+          <input type="text" id="renegDemaisTarifasValor" inputmode="decimal" placeholder="0,00" value="">
+        </div>
+        <button type="button" class="btn-ghost" id="btnAlienacaoReneg" style="padding:8px 12px;font-size:13px;">Alienação</button>
+        <p class="hint" id="renegDemaisTarifasHint">Digite o valor na mão ou use o botão para preencher a taxa de alienação.</p>
       </div>
 
       <p class="hint">Importante: IOF, tarifa e seguro prestamista são calculados e exibidos para referência, mas <strong>não são descontados</strong> do valor a financiar — a simulação (parcelas) e o PDF usam sempre o valor cheio (total − entrada).</p>
@@ -1159,6 +1197,26 @@
   }
   toggleSubPanel('comissaoAtiva','comissaoPanel');
   toggleSubPanel('prestamistaAtiva','prestamistaPanel');
+  toggleSubPanel('demaisTarifasAtiva','demaisTarifasPanel');
+  toggleSubPanel('renegDemaisTarifasAtiva','renegDemaisTarifasPanel');
+
+  // ---------- Demais tarifas (campo livre + atalho de alienação) ----------
+  aplicarMascaraMoeda($('demaisTarifasValor'));
+  aplicarMascaraMoeda($('renegDemaisTarifasValor'));
+  function preencherAlienacao(idCampo){
+    const el = $(idCampo);
+    el.value = TARIFA_ALIENACAO_REAIS.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+    el.dispatchEvent(new Event('input'));
+  }
+  $('btnAlienacao').addEventListener('click', ()=>preencherAlienacao('demaisTarifasValor'));
+  $('btnAlienacaoReneg').addEventListener('click', ()=>preencherAlienacao('renegDemaisTarifasValor'));
+  // só entra na conta quando o toggle está ligado
+  function demaisTarifasValor(){
+    return $('demaisTarifasAtiva').checked ? parseMoeda($('demaisTarifasValor')) : 0;
+  }
+  function demaisTarifasValorReneg(){
+    return $('renegDemaisTarifasAtiva').checked ? parseMoeda($('renegDemaisTarifasValor')) : 0;
+  }
 
   // ---------- formatting ----------
   const fmtBRL = v => (isFinite(v)?v:0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -1233,6 +1291,8 @@
 
   // ---------- tarifa de cadastro/TAC e comissão de aval (FAMPE/FAMPE Mulher/FGI) ----------
   let TARIFA_CONFIG = { percentual: 1, tetoReais: 4000 }; // percentual em %, ex.: 1 = 1%
+  // valor do atalho "Alienação" no campo Demais tarifas (em R$, editável no config.json)
+  let TARIFA_ALIENACAO_REAIS = 458.08;
   let COMISSAO_CONFIG = {
     FAMPE:        { taxaMensalPct: 0.1, baseSobreValorPct: 80 },
     FAMPE_MULHER: { taxaMensalPct: 0.1, baseSobreValorPct: 100 },
@@ -1271,6 +1331,9 @@
 
       if(cfg.tarifa && typeof cfg.tarifa.percentual==='number' && typeof cfg.tarifa.tetoReais==='number'){
         TARIFA_CONFIG = { percentual: cfg.tarifa.percentual, tetoReais: cfg.tarifa.tetoReais };
+      }
+      if(cfg.demaisTarifas && typeof cfg.demaisTarifas.alienacaoReais==='number'){
+        TARIFA_ALIENACAO_REAIS = cfg.demaisTarifas.alienacaoReais;
       }
 
       if(cfg.comissaoAval){
@@ -1513,7 +1576,9 @@
       }
     }
 
-    return {iof,tarifa,comissao,prestamista, total: iof+tarifa+comissao+prestamista, tarifaAtiva, comissaoAtiva, prestamistaAtiva, prestamistaInfo};
+    const demais = demaisTarifasValor();
+    const demaisAtiva = $('demaisTarifasAtiva').checked;
+    return {iof,tarifa,comissao,prestamista,demais, total: iof+tarifa+comissao+prestamista+demais, tarifaAtiva, comissaoAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo};
   }
 
   function liquidoDe(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
@@ -1636,6 +1701,7 @@
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:'Comissão '+(fundo==='FAMPE_MULHER'?'FAMPE Mulher':fundo), val: d.comissao, active:d.comissaoAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
+      {label:'Demais tarifas', val: d.demais, active:d.demaisAtiva},
     ];
     let html = '';
     rows.forEach(row=>{
@@ -2419,7 +2485,9 @@
       }
     }
 
-    return {iof, tarifa, prestamista, total: iof+tarifa+prestamista, tarifaAtiva, prestamistaAtiva, prestamistaInfo, linhas: linhasTmp};
+    const demais = demaisTarifasValorReneg();
+    const demaisAtiva = $('renegDemaisTarifasAtiva').checked;
+    return {iof, tarifa, prestamista, demais, total: iof+tarifa+prestamista+demais, tarifaAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo, linhas: linhasTmp};
   }
 
   function calcularReneg(){
@@ -2477,6 +2545,7 @@
       {label:'IOF (PJ)', val: d.iof, active:true},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
+      {label:'Demais tarifas', val: d.demais, active:d.demaisAtiva},
     ];
     let html = '';
     rows.forEach(row=>{
@@ -3406,6 +3475,9 @@
     $('prestamistaAtiva').checked = false;
     dispararChange('prestamistaAtiva');
     $('prestamistaNascimento').value = '';
+    $('demaisTarifasAtiva').checked = false;
+    dispararChange('demaisTarifasAtiva');
+    $('demaisTarifasValor').value = '';
     segClick('seg-iofPessoa','PJ');
     $('iofFixo').value = '0.38';
     $('iofDiario').value = '0.0082';
@@ -3434,6 +3506,9 @@
     $('renegPrestamistaAtiva').checked = false;
     dispararChange('renegPrestamistaAtiva');
     $('renegPrestamistaNascimento').value = '';
+    $('renegDemaisTarifasAtiva').checked = false;
+    dispararChange('renegDemaisTarifasAtiva');
+    $('renegDemaisTarifasValor').value = '';
     atualizarResumoCarenciaReneg();
     $('resultsReneg').classList.add('hidden');
     lastResultReneg = null;

@@ -15,6 +15,11 @@
     "tetoReais": 4000
   },
 
+  "demaisTarifas": {
+    "_comentario": "Campo livre 'Demais tarifas', disponível nos modos Empréstimo (PRICE/SAC) e Renegociação. Na tela dá pra digitar qualquer valor na mão; o botão de atalho preenche o valor de alienação definido aqui. Valor em R$ (não é %).",
+    "alienacaoReais": 458.08
+  },
+
   "comissaoAval": {
     "_comentario": "Comissão de aval (garantia). FAMPE e FAMPE Mulher usam taxa mensal fixa sobre uma base do valor financiado; FGI usa 'Fator K', uma tabela que varia por faixa de prazo (em meses) — fatorK aqui é o valor bruto usado na fórmula 0,48 × fatorK × valor × prazo (não é %, é o fator já pronto da tabela oficial do FGI).",
     "FAMPE":        { "taxaMensalPct": 0.1, "baseSobreValorPct": 80 },
