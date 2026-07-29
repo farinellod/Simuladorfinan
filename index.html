@@ -157,6 +157,12 @@
     padding-bottom:6px;border-bottom:1px solid var(--line);
   }
   .prazo-card.active .pz-title{color:var(--teal-dim);}
+  .prazo-card .pz-sub{
+    font-size:9px;line-height:1.3;text-align:center;color:var(--ink-faint);
+    font-weight:600;padding:2px 0 3px;
+  }
+  .prazo-card .pz-sub:empty{display:none;}
+  .prazo-card.active .pz-sub{color:var(--teal-dim);}
   .prazo-card .pz-body{flex:1;margin-top:6px;min-height:0;}
   .prazo-card .pz-list{
     overflow-y:auto;height:100%;
@@ -3491,9 +3497,9 @@
     const grid = $(gridId);
     let html = '';
     PRAZOS_GRADE.forEach(p=>{
-      html += `<div class="prazo-card" data-prazo="${p}"><div class="pz-title">${p} meses</div><div class="pz-body pz-vazio">—</div></div>`;
+      html += `<div class="prazo-card" data-prazo="${p}"><div class="pz-title">${p} meses</div><div class="pz-sub"></div><div class="pz-body pz-vazio">—</div></div>`;
     });
-    html += `<div class="prazo-card" data-pers="1" data-prazo=""><div class="pz-title">Personalizado</div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
+    html += `<div class="prazo-card" data-pers="1" data-prazo=""><div class="pz-title">Personalizado</div><div class="pz-sub"></div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
     grid.innerHTML = html;
   }
   montarGradePrazos('gradePrazos','prazoPersInput');
@@ -3529,22 +3535,41 @@
     return gerarTabela(valorFinanciar, taxaMensal, prazoX, carencia, sistemaReneg, parseDataRenegLiberacao(), parseDataRenegPrimeiraParcela());
   }
 
-  function atualizarGradePrazos(gridId, persInputId, linhasFn, prazoSel){
+  function atualizarGradePrazos(gridId, persInputId, linhasFn, prazoSel, libFn, carFn){
     const grid = $(gridId);
     grid.querySelectorAll('.prazo-card').forEach(card=>{
       const pers = card.dataset.pers==='1';
       const pz = pers ? Math.round(parseFloat($(persInputId).value)||0) : parseInt(card.dataset.prazo,10);
       const valido = pz>=1 && pz<=180;
       const body = card.querySelector('.pz-body');
+      const sub = card.querySelector('.pz-sub');
       const linhas = valido ? linhasFn(pz) : null;
       if(linhas){
         body.className = 'pz-body';
         body.innerHTML = '<div class="pz-list">' +
           linhas.map(l=>`<div><span class="pn">${l.n}</span><span>${fmtValorParcelaCurto(l.parcela)}</span></div>`).join('') +
           '</div>';
+        // Meses totais da operação pela regra da planilha oficial de Comissão de Aval
+        // (Sicredi): "o prazo considera todos os dias vigentes da operação, da liberação
+        // até a última parcela" → ROUNDUP(dias/30). Ex.: liberação 28/07/2026, última
+        // 28/12/2027 → 518 dias → 18 meses; com 12 parcelas, 6 de carência.
+        // Só aparece quando a CARÊNCIA INFORMADA passa de 1 — em prazos longos o
+        // ROUNDUP sozinho já rende 1-2 meses a mais (meses reais têm ~30,4 dias), e
+        // isso não é carência; com carência de verdade, o número exibido é o da CCA.
+        const lib = libFn ? libFn() : null;
+        const carInformada = carFn ? carFn() : 0;
+        let subTxt = '';
+        if(lib && carInformada > 1){
+          const dias = Math.round((linhas[linhas.length-1].data - lib)/86400000);
+          const mesesTot = Math.ceil(dias/30 - 1e-9);
+          const carCalc = Math.max(0, mesesTot - pz);
+          subTxt = `${carCalc} de carência<br>total de ${mesesTot} meses`;
+        }
+        sub.innerHTML = subTxt;
       } else {
         body.className = 'pz-body pz-vazio';
         body.textContent = pers ? 'digite o nº de parcelas' : 'preencha valor e taxa';
+        sub.innerHTML = '';
       }
       if(pers) card.dataset.prazo = valido ? String(pz) : '';
       card.classList.toggle('active', !!linhas && pz===prazoSel);
@@ -3565,7 +3590,7 @@
   }
 
   function executarAutoCalcEmprestimo(){
-    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado);
+    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado,parseDataLiberacao,()=>Math.round(parseFloat($('carencia').value)||0));
     const valor = parseMoeda($('valorSimulacao'));
     const taxa = sistema==='SAC'
       ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
@@ -3576,7 +3601,7 @@
     }
   }
   function executarAutoCalcReneg(){
-    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg);
+    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg,parseDataRenegLiberacao,()=>Math.round(parseFloat($('renegCarencia').value)||0));
     const vf = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
     const taxa = sistemaReneg==='SAC'
       ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
@@ -3663,7 +3688,7 @@
     $('prazoSac').value = '60';
     prazoSelecionado = 60;
     $('prazoPersInput').value = '';
-    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado);
+    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado,parseDataLiberacao,()=>Math.round(parseFloat($('carencia').value)||0));
     $('carencia').value = '0';
     $('dataLiberacao').value = toISODate(new Date());
     primeiraParcelaEditadaManualmente = false;
@@ -3700,7 +3725,7 @@
     $('renegPrazoSac').value = '60';
     prazoSelecionadoReneg = 60;
     $('prazoPersInputReneg').value = '';
-    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg);
+    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg,parseDataRenegLiberacao,()=>Math.round(parseFloat($('renegCarencia').value)||0));
     $('renegCarencia').value = '0';
     $('renegDataLiberacao').value = toISODate(new Date());
     renegPrimeiraParcelaEditadaManualmente = false;
