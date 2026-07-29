@@ -1475,17 +1475,18 @@
   // associado for entrar na faixa "66+" durante o prazo (partindo de até 65 anos), a
   // planilha oficial (simulador.xlsm, aba SAC — "Prazo da Operação") NÃO recalcula um
   // prêmio misto: ela corta os dias usados no cálculo na véspera do aniversário de 66
-  // anos, e ignora o resto do prazo. Confirmado em dois testes reais e opostos:
-  // - associado de 64 anos, contrato de 54 meses (nasc. 19/06/1962): "Prazo da
-  //   Operação" = 691 dias = exatamente até 19/06/2028 (quando completa 66), não os
-  //   ~1797 dias do contrato inteiro — com 691 dias o prêmio bate exato com os
-  //   R$ 1.699,27 da planilha.
-  // - associado de 68 anos, mesmo prazo (nasc. 23/10/1957): apesar de ele completar
-  //   71 anos (mudando de 66-70 pra 71-75) bem antes do fim do prazo, o prêmio NÃO foi
-  //   cortado — bateu exato usando o prazo inteiro (R$ 15.324,78). Ou seja, o corte só
-  //   existe na entrada na faixa 66+; as transições seguintes (71, 76) não cortam.
-  function diasOperacaoPrestamista(dataLiberacao, dataUltimaParcela, nascimento, faixaAtual){
+  // anos, e ignora o resto do prazo. Confirmado em três testes reais, cada um com o
+  // MESMO associado (64 anos, cruza os 66 no meio do prazo) e o MESMO prazo/carência:
+  // - SAC: "Prazo da Operação" = 691 dias = exatamente até completar 66 anos (não os
+  //   ~1797 dias do contrato inteiro) — com 691 dias o prêmio bate exato (R$ 1.699,27).
+  // - PRICE: aqui o Excel NÃO corta nada — usa os ~1797 dias do prazo inteiro, e o
+  //   prêmio bate exato assim (R$ 6.784,46). Com o corte aplicado (691 dias) daria só
+  //   R$ 2.608,83, bem abaixo do que a planilha realmente mostra.
+  // Ou seja: o corte é uma particularidade do SAC, não existe no PRICE. Aplicado só
+  // quando sistemaCalc==='SAC'.
+  function diasOperacaoPrestamista(dataLiberacao, dataUltimaParcela, nascimento, faixaAtual, sistemaCalc){
     const diasCheios = Math.round((dataUltimaParcela - dataLiberacao)/86400000) + 1;
+    if(sistemaCalc!=='SAC') return diasCheios;
     if(!faixaAtual || faixaAtual.max !== 65) return diasCheios;
     const transicao66 = new Date(nascimento.getFullYear()+66, nascimento.getMonth(), nascimento.getDate());
     const diasAteTransicao = Math.round((transicao66 - dataLiberacao)/86400000);
@@ -1642,7 +1643,7 @@
             ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : bruto;
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
-          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade);
+          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade, sistemaCalc);
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
         } else {
@@ -2550,7 +2551,7 @@
             ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : valorFinanciar;
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
-          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade);
+          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade, sistemaCalc);
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
         } else {
