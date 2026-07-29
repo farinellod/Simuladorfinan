@@ -1244,7 +1244,7 @@
   function preencherAlienacao(idCampo){
     const el = $(idCampo);
     el.value = TARIFA_ALIENACAO_REAIS.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-    el.dispatchEvent(new Event('input'));
+    el.dispatchEvent(new Event('input', {bubbles:true}));
   }
   $('btnAlienacao').addEventListener('click', ()=>preencherAlienacao('demaisTarifasValor'));
   $('btnAlienacaoReneg').addEventListener('click', ()=>preencherAlienacao('renegDemaisTarifasValor'));
@@ -3631,26 +3631,25 @@
     agendarAutoCalcReneg();
   });
 
-  // qualquer dado alterado no modo recalcula tudo (delegação de eventos)
-  ['input','change'].forEach(ev=>{
-    $('modoEmprestimo').addEventListener(ev, e=>{
-      if(e.target.closest('#results')) return;
-      agendarAutoCalcEmprestimo();
-    });
-    $('modoRenegociacao').addEventListener(ev, e=>{
-      if(e.target.closest('#resultsReneg')) return;
-      agendarAutoCalcReneg();
-    });
-  });
-  // botões de segmento (PRICE/SAC, bruto/líquido, fundo, IOF) não disparam input/change
-  $('modoEmprestimo').addEventListener('click', e=>{
-    if(e.target.closest('#results') || e.target.closest('#gradePrazos')) return;
-    if(e.target.closest('.seg button')) agendarAutoCalcEmprestimo();
-  });
-  $('modoRenegociacao').addEventListener('click', e=>{
-    if(e.target.closest('#resultsReneg') || e.target.closest('#gradePrazosReneg')) return;
-    if(e.target.closest('.seg button')) agendarAutoCalcReneg();
-  });
+  // qualquer dado alterado no modo recalcula tudo — roteador GLOBAL em fase de
+  // captura: pega input/change/click em qualquer campo, toggle, seletor ou botão
+  // (encargos, tarifas, seguro, fundo, demais tarifas, datas, avançado etc.),
+  // inclusive eventos disparados por código sem bubbles. Áreas de resultado e
+  // botões de ação (calcular/imprimir/baixar) ficam de fora.
+  function rotearAutoCalc(e){
+    const t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('#results') || t.closest('#resultsReneg')) return;
+    if(t.closest('#gradePrazos') || t.closest('#gradePrazosReneg')) return; // grades já tratadas acima
+    if(e.type==='click'){
+      const btn = t.closest('button');
+      if(!btn) return;
+      if(/^btn(Calcular|Imprimir|Baixar)/.test(btn.id||'') || btn.id==='btnReiniciar') return;
+    }
+    if(t.closest('#modoEmprestimo')) agendarAutoCalcEmprestimo();
+    else if(t.closest('#modoRenegociacao')) agendarAutoCalcReneg();
+  }
+  ['input','change','click'].forEach(ev=>document.addEventListener(ev, rotearAutoCalc, true));
 
   // ============================================================
   // BOTÃO FLUTUANTE: reiniciar cálculo do modo atual
