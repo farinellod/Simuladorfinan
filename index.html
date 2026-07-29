@@ -184,6 +184,8 @@
     cursor:pointer;letter-spacing:.01em;
   }
   .btn-primary:active{transform:scale(.99);}
+  /* Empréstimo e Renegociação calculam sozinhos — botões mantidos no DOM para o auto-cálculo/impressão, mas ocultos */
+  #btnCalcular, #btnCalcularReneg{display:none;}
   .btn-ghost{
     width:100%;background:transparent;color:var(--ink-dim);border:1px solid var(--line);
     padding:10px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px;
@@ -1480,44 +1482,39 @@
     };
 
     if(sistemaCalc==='PRICE'){
-      // PRICE: modelo oficial do Excel (validado exato contra os PDFs do Sicredi).
-      // Não há linhas separadas de carência. Gera-se uma tabela PRICE padrão sobre um
-      // "valor presente" VP = bruto capitalizado pelos dias de carência EXCEDENTES ao
-      // 1º mês normal (30 dias). O PMT é constante. O saldo devedor exibido é o saldo
-      // dessa tabela-VP; o PRINCIPAL real só aparece quando o saldo-VP cai abaixo do
-      // bruto original (antes disso a parcela é juros puro, principal=0).
-      // Fonte: simulador.xlsm 'PRICE - Principal'; confere PMT, IOF, saldo e datas.
+      // PRICE: réplica EXATA do simulador.xlsm ('PRICE'!F14 + 'PRICE - Principal').
+      // Validado ao centavo contra 3 telas oficiais (12/24/36x com carência de 6 meses).
+      // - PMT = ROUNDDOWN(PMT(i, prazo, -bruto×(1+fatorCarência)), 2), onde
+      //   fatorCarência = (1+i)^(diasExcedentes/30) − 1 e diasExcedentes = dias até a
+      //   1ª parcela − 30. A carência NÃO consome parcelas (prazo = nº de parcelas).
+      // - Plano saldo-forward: juros da 1ª = TRUNC(bruto×((1+i)^(dias1ª/30)−1), 2);
+      //   nas demais, juros = saldo×i + excesso anterior. Quando os juros excedem a
+      //   parcela (fase de carência), o excesso H capitaliza no saldo e o principal
+      //   fica 0 — é a base oficial do IOF por parcela. Última parcela quita o saldo.
       const data1a = dataParcela(1);
       const diasAte1a = Math.round((data1a - dataLiberacao)/86400000);
       const diasExcedentes = Math.max(diasAte1a - 30, 0);
       const VP = bruto * Math.pow(1+i, diasExcedentes/30);
-      const pmt = i===0 ? VP/nAmort : VP*i/(1-Math.pow(1+i,-nAmort));
+      const pmtRaw = i===0 ? VP/nAmort : VP*i/(1-Math.pow(1+i,-nAmort));
+      const pmt = Math.floor(pmtRaw*100 + 1e-9)/100; // ROUNDDOWN(…,2) — igual ao Excel
 
-      let saldoVP = VP;
+      let Kprev = bruto, Hprev = 0;
       for(let m=1; m<=nAmort; m++){
         const dataAtual = dataParcela(m);
-        const amortVP = pmt - saldoVP*i;
-        const novoSaldoVP = saldoVP - amortVP;
-        // principal REAL: 0 enquanto o saldo-VP > bruto; na transição, a parte que cruza
-        // o bruto; depois, a amortização cheia da tabela-VP.
-        let principalReal;
-        if(novoSaldoVP >= bruto) principalReal = 0;
-        else if(saldoVP > bruto) principalReal = bruto - novoSaldoVP;
-        else principalReal = amortVP;
-        // Juros EXIBIDO: o PDF oficial mostra juros = parcela − principal, sendo que na
-        // fase de carência o "principal" é negativo (a dívida ainda cresce). Por isso a
-        // coluna Principal aparece zerada, mas o juros absorve esse crescimento —
-        // ex.: parcela 2 = 21.258,92, não 3.962,74 (que seria só saldo × taxa).
-        const principalParaJuros = (novoSaldoVP >= bruto) ? (bruto - novoSaldoVP) : principalReal;
-        let jurosShow = (m===1)
-          ? bruto * (Math.pow(1+i, diasAte1a/30) - 1)
-          : pmt - principalParaJuros;
-        let amortShow = principalReal;
-        let saldoExibido = novoSaldoVP;
-        if(m===nAmort){ amortShow = saldoVP; saldoExibido = 0; jurosShow = pmt - amortShow; }
-        saldoVP = novoSaldoVP;
-        const emCarencia = amortShow===0 && m<nAmort;
-        linhas.push({n:m, data: dataAtual, parcela: pmt, juros: jurosShow, amort: amortShow, saldo: Math.max(0,saldoExibido), carencia:false, gracaPrice: emCarencia});
+        let G;
+        if(m===1){
+          G = Math.trunc(bruto*(Math.pow(1+i, diasAte1a/30)-1)*100 + 1e-9)/100; // TRUNC 2c
+        } else {
+          G = Kprev*i + Hprev;
+        }
+        const H = Math.max(0, G - pmt);
+        let D;
+        if(m===nAmort) D = Kprev;                 // última parcela quita o saldo
+        else D = (pmt - G < 0) ? 0 : pmt - G;
+        const K = Kprev - D + H - Hprev;
+        const emCarencia = D===0 && m<nAmort;
+        linhas.push({n:m, data: dataAtual, parcela: pmt, juros: G, amort: D, saldo: Math.max(0,K), carencia:false, gracaPrice: emCarencia});
+        Kprev = K; Hprev = H;
         dataAnterior = dataAtual;
       }
     } else { // SAC: sem linhas de carência — amortização constante sobre o bruto original desde
@@ -1555,7 +1552,8 @@
       const diasCap = Math.min(dias, 365);
       iofDiario += l.amort * diasCap * iofDiarioPct;
     });
-    const iof = iofFixo + iofDiario;
+    // total diário arredondado a 2 casas, igual ao Excel ('PRICE - Calculo'!E1 = ROUND(SUM,2))
+    const iof = iofFixo + Math.round(iofDiario*100)/100;
 
     const tarifaAtiva = $('tarifaAtiva').checked;
     const tarifa = tarifaAtiva ? Math.min(bruto*(TARIFA_CONFIG.percentual/100), TARIFA_CONFIG.tetoReais) : 0;
@@ -1593,19 +1591,16 @@
         const idade = calcIdade(nascimento, dataLiberacao);
         const taxaIdade = taxaPrestamistaPorIdade(idade);
         if(taxaIdade!=null){
-          // Seguro prestamista é INDEPENDENTE de carência (confirmado nos PDFs: o prêmio
-          // é o mesmo com e sem carência). Por isso a base é sempre calculada sobre o
-          // cronograma SEM carência.
-          // PRICE: base = soma de todas as parcelas (valor da operação) do plano sem carência.
-          // SAC: base = valor bruto (crédito liberado). Fórmulas oficiais distintas
-          // (simulador.xlsm, abas "PRICE"!E20 vs "SAC"!E18). O SAC no Excel refina o
-          // prêmio por um cálculo atuarial iterativo — aqui usamos a base bruto, que fica
-          // a poucos por cento do valor da planilha.
-          const linhasSemCarencia = gerarTabela(bruto, taxaMensal, prazoTotal, 0, sistemaCalc, dataLiberacao);
+          // Fórmula exata do simulador.xlsm (Pagamento Único), validada ao centavo
+          // contra as telas oficiais COM carência:
+          // - PRICE ('PRICE'!F20): prêmio = (taxa/30) × diasOperação × (PMT × prazo),
+          //   usando o plano REAL (a carência aumenta o PMT e os dias — e o prêmio).
+          // - SAC ('SAC'!F18): prêmio = (taxa/30) × diasOperação × bruto.
+          // diasOperação = última data de vencimento do plano real − liberação + 1.
           const baseCalculo = sistemaCalc==='PRICE'
-            ? linhasSemCarencia.reduce((s,l)=>s+l.parcela, 0)
+            ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : bruto;
-          const ultimaData = linhasSemCarencia[linhasSemCarencia.length-1].data;
+          const ultimaData = linhasTmp[linhasTmp.length-1].data;
           const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
@@ -1645,33 +1640,31 @@
     return m;
   }
 
-  // CET aproximado via Newton-Raphson (IRR mensal).
-  // O expoente de cada parcela é o MÊS REAL do vencimento contado da liberação — não a
-  // posição dela na lista. Sem isso, uma operação com carência era descontada como se a
-  // 1ª parcela vencesse em 30 dias, inflando o CET (o PDF oficial do Sicredi de
-  // 209.145,95 · 60x · carência 6 dá 1,91% a.m.; descontando de 1 a 60 dava 2,30%).
+  // CET pelo MESMO método do Excel ('PRICE - Principal'!L2/L3): XIRR sobre o fluxo
+  // real — sai o valor líquido na liberação e entram as parcelas em cada vencimento.
+  // CET a.a. = ROUND((1+XIRR)^(365/360) − 1, 6); CET a.m. = (1+XIRR)^(1/12) − 1.
+  // Validado ao centavo contra as telas oficiais do simulador.xlsm com carência
+  // (27,26% / 25,91% / 25,33% a.a. nos casos de 12/24/36 parcelas).
   function calcCET(valorLiberado, linhas, dataLiberacao){
-    const fluxos = linhas.map(l=>l.parcela);
-    const expo = linhas.map((l,idx)=>{
-      if(!dataLiberacao || !l.data) return idx+1;
-      return Math.max(1, mesesEntreDatas(dataLiberacao, l.data));
-    });
-    let taxa = 0.02;
-    for(let iter=0; iter<200; iter++){
-      let npv = -valorLiberado;
-      let dnpv = 0;
-      for(let t=0;t<fluxos.length;t++){
-        const k = expo[t];
-        npv += fluxos[t]/Math.pow(1+taxa, k);
-        dnpv += -k*fluxos[t]/Math.pow(1+taxa, k+1);
+    const d0 = dataLiberacao || (linhas[0] && linhas[0].data) || new Date();
+    const vpl = (r)=>{
+      let sTot = -valorLiberado;
+      for(const l of linhas){
+        const dias = Math.round((l.data - d0)/86400000);
+        sTot += l.parcela/Math.pow(1+r, dias/365);
       }
-      if(Math.abs(dnpv) < 1e-12) break;
-      const novaTaxa = taxa - npv/dnpv;
-      if(!isFinite(novaTaxa)) break;
-      if(Math.abs(novaTaxa-taxa) < 1e-9){ taxa = novaTaxa; break; }
-      taxa = novaTaxa;
+      return sTot;
+    };
+    let lo=-0.999, hi=10;
+    for(let k=0;k<200;k++){
+      const mid=(lo+hi)/2;
+      if(vpl(mid)>0) lo=mid; else hi=mid;
     }
-    return taxa;
+    const irr=(lo+hi)/2;
+    return {
+      cetMensal: Math.pow(1+irr, 1/12)-1,
+      cetAnual: Math.round((Math.pow(1+irr, 365/360)-1)*1e6)/1e6,
+    };
   }
 
   // ---------- main ----------
@@ -1704,10 +1697,8 @@
     }
 
     const linhas = gerarTabela(bruto, taxaMensal, prazo, carencia, sistema, dataLiberacao, dataPrimeira);
-    const cetMensal = calcCET(liquido, linhas, dataLiberacao);
-    // CET a.a. na convenção oficial BASE 365 (o PDF do Sicredi rotula "CET % a.a. (Base 365)"
-    // e "CET % a.m. (Base 30)"): anualiza o mensal por 365/30, não por 12 meses cheios.
-    const cetAnual = Math.pow(1+cetMensal,365/30)-1;
+    const cetObj = calcCET(liquido, linhas, dataLiberacao);
+    const cetMensal = cetObj.cetMensal, cetAnual = cetObj.cetAnual;
 
     lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao, valorInformado, tipoValor, seguroAtivo: ded.prestamistaAtiva, taxaMensal};
     render(lastResult);
@@ -2495,7 +2486,8 @@
       const diasCap = Math.min(dias, 365);
       iofDiario += l.amort * diasCap * iofDiarioPct;
     });
-    const iof = iofFixo + iofDiario;
+    // total diário arredondado a 2 casas, igual ao Excel ('PRICE - Calculo'!E1 = ROUND(SUM,2))
+    const iof = iofFixo + Math.round(iofDiario*100)/100;
 
     const tarifaAtiva = $('renegTarifaAtiva').checked;
     const tarifa = tarifaAtiva ? Math.min(valorFinanciar*(TARIFA_CONFIG.percentual/100), TARIFA_CONFIG.tetoReais) : 0;
@@ -2510,11 +2502,11 @@
         const idade = calcIdade(nascimento, dataLiberacao);
         const taxaIdade = taxaPrestamistaPorIdade(idade);
         if(taxaIdade!=null){
-          const linhasSemCarencia = gerarTabela(valorFinanciar, taxaMensal, prazoTotal, 0, sistemaCalc, dataLiberacao);
+          // mesma fórmula do Empréstimo (simulador.xlsm, Pagamento Único), sobre o plano REAL
           const baseCalculo = sistemaCalc==='PRICE'
-            ? linhasSemCarencia.reduce((s,l)=>s+l.parcela, 0)
+            ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : valorFinanciar;
-          const ultimaData = linhasSemCarencia[linhasSemCarencia.length-1].data;
+          const ultimaData = linhasTmp[linhasTmp.length-1].data;
           const diasOperacao = Math.round((ultimaData - dataLiberacao)/86400000) + 1;
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
@@ -2549,10 +2541,8 @@
 
     const ded = calcDeducoesReneg(valorFinanciar, prazo, carencia, taxaMensal, sistemaReneg, dataLiberacao, dataPrimeira);
     const linhas = ded.linhas;
-    const cetMensal = calcCET(valorFinanciar, linhas, dataLiberacao);
-    // CET a.a. na convenção oficial BASE 365 (o PDF do Sicredi rotula "CET % a.a. (Base 365)"
-    // e "CET % a.m. (Base 30)"): anualiza o mensal por 365/30, não por 12 meses cheios.
-    const cetAnual = Math.pow(1+cetMensal,365/30)-1;
+    const cetObj = calcCET(valorFinanciar, linhas, dataLiberacao);
+    const cetMensal = cetObj.cetMensal, cetAnual = cetObj.cetAnual;
 
     return { valorTotal, valorEntrada, valorFinanciar, ded, linhas, prazo, carencia, taxaMensal, sistema: sistemaReneg, dataLiberacao, cetMensal, cetAnual };
   }
