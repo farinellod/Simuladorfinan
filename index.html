@@ -135,6 +135,46 @@
   .sub-panel{
     margin-top:8px;padding-top:8px;
   }
+
+  /* grade de prazos (parcelas por prazo) */
+  .prazo-grid{
+    display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;
+    -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;
+  }
+  .prazo-card{
+    flex:0 0 132px;width:132px;height:236px;
+    display:flex;flex-direction:column;
+    background:var(--navy-900);border:1px solid var(--line);border-radius:10px;
+    padding:8px;cursor:pointer;scroll-snap-align:start;
+  }
+  .prazo-card.active{
+    border-color:var(--teal-dim);
+    background:linear-gradient(180deg,rgba(63,161,16,0.12),var(--navy-900));
+    box-shadow:0 0 0 1px var(--teal-dim);
+  }
+  .prazo-card .pz-title{
+    font-size:12px;font-weight:700;text-align:center;color:var(--ink-dim);
+    padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+  .prazo-card.active .pz-title{color:var(--teal-dim);}
+  .prazo-card .pz-body{flex:1;margin-top:6px;min-height:0;}
+  .prazo-card .pz-list{
+    overflow-y:auto;height:100%;
+    font-family:var(--mono);font-size:10.5px;line-height:1.7;
+  }
+  .prazo-card .pz-list > div{display:flex;justify-content:space-between;gap:4px;white-space:nowrap;}
+  .prazo-card .pz-list .pn{color:var(--ink-faint);}
+  .prazo-card .pz-vazio{
+    display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--ink-faint);font-size:11px;text-align:center;padding:6px;line-height:1.4;
+  }
+  .prazo-card input.pz-input{
+    width:100%;margin-top:6px;background:var(--card);border:1px solid var(--line);
+    border-radius:7px;padding:6px 4px;font-family:var(--mono);font-size:13px;
+    text-align:center;color:var(--ink);
+  }
+  .prazo-card input.pz-input:focus{outline:none;border-color:var(--teal);}
+
   .sub-panel.hidden{display:none;}
   .hidden{display:none !important;}
 
@@ -374,15 +414,10 @@
     </div>
     <p class="hint" id="tipoValorHint">Valor bruto = valor financiado / valor do contrato.</p>
 
-    <div class="row2" style="margin-top:14px;" id="row-taxa-price">
-      <div class="field" style="margin-top:0;">
-        <label>Taxa de juros (% a.m.)</label>
-        <input type="number" id="taxaMensal" step="0.01" placeholder="Insira a taxa" value="">
-      </div>
-      <div class="field" style="margin-top:0;">
-        <label>Prazo total (meses, máx. 180)</label>
-        <input type="number" id="prazo" max="180" min="1" placeholder="Insira o prazo" value="">
-      </div>
+    <div class="field" style="margin-top:14px;" id="row-taxa-price">
+      <label>Taxa de juros (% a.m.)</label>
+      <input type="number" id="taxaMensal" step="0.01" placeholder="Insira a taxa" value="">
+      <input type="hidden" id="prazo" value="60">
     </div>
     <div class="hidden" id="row-taxa-sac">
       <div class="row2" style="margin-top:14px;">
@@ -401,10 +436,7 @@
         </div>
       </div>
       <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
-      <div class="field">
-        <label>Prazo total (meses, máx. 180)</label>
-        <input type="number" id="prazoSac" max="180" min="1" placeholder="Insira o prazo" value="">
-      </div>
+      <input type="hidden" id="prazoSac" value="60">
     </div>
     <div class="field">
       <label>Carência (meses até o vencimento da 1ª parcela)</label>
@@ -510,6 +542,12 @@
     </div>
   </section>
 
+  <section class="card">
+    <p class="card-title">Parcelas por prazo</p>
+    <div class="prazo-grid" id="gradePrazos"></div>
+    <p class="hint">Tudo calcula sozinho conforme você preenche — cada quadro mostra as parcelas daquele prazo. Toque num quadro para usá-lo no resumo, na tabela detalhada e no PDF; no "Personalizado", digite o nº de parcelas.</p>
+  </section>
+
   <button class="btn-primary" id="btnCalcular">Calcular simulação</button>
 
   <!-- RESULTADOS -->
@@ -608,10 +646,7 @@
         <div class="field" style="margin-top:0;">
           <label>Taxa de juros (% a.m.)</label>
           <input type="number" id="renegTaxaMensal" step="0.01" placeholder="Insira a taxa" value="">
-        </div>
-        <div class="field" style="margin-top:0;">
-          <label>Prazo total (meses, máx. 180)</label>
-          <input type="number" id="renegPrazo" max="180" min="1" placeholder="Insira o prazo" value="">
+          <input type="hidden" id="renegPrazo" value="60">
         </div>
       </div>
       <div class="hidden" id="row-taxa-sac-reneg">
@@ -631,10 +666,7 @@
           </div>
         </div>
         <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
-        <div class="field">
-          <label>Prazo total (meses, máx. 180)</label>
-          <input type="number" id="renegPrazoSac" max="180" min="1" placeholder="Insira o prazo" value="">
-        </div>
+        <input type="hidden" id="renegPrazoSac" value="60">
       </div>
       <div class="field">
         <label>Carência (meses até o vencimento da 1ª parcela)</label>
@@ -714,6 +746,12 @@
       </div>
 
       <p class="hint">Importante: IOF, tarifa e seguro prestamista são calculados e exibidos para referência, mas <strong>não são descontados</strong> do valor a financiar — a simulação (parcelas) e o PDF usam sempre o valor cheio (total − entrada).</p>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Parcelas por prazo</p>
+      <div class="prazo-grid" id="gradePrazosReneg"></div>
+      <p class="hint">Tudo calcula sozinho conforme você preenche — toque num quadro para usá-lo no resumo, na tabela e no PDF; no "Personalizado", digite o nº de parcelas.</p>
     </section>
 
     <button class="btn-primary" id="btnCalcularReneg">Calcular renegociação</button>
@@ -1395,6 +1433,7 @@
         const base = tipo==='CDI' ? (metaSelicAno - 0.10) : metaSelicAno;
         const taxaMensal = base/12;
         alvoEl.value = taxaMensal.toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+        alvoEl.dispatchEvent(new Event('input', {bubbles:true}));
         const formula = tipo==='CDI'
           ? `(${metaSelicAno.toFixed(2)}% − 0,10%) ÷ 12`
           : `${metaSelicAno.toFixed(2)}% ÷ 12`;
@@ -1673,7 +1712,7 @@
     lastResult = {bruto, liquido, ded, linhas, cetMensal, cetAnual, prazo, carencia, sistema, dataLiberacao, valorInformado, tipoValor, seguroAtivo: ded.prestamistaAtiva, taxaMensal};
     render(lastResult);
     $('results').style.display = 'block';
-    $('results').scrollIntoView({behavior:'smooth', block:'start'});
+    if(!suprimirScrollResultados) $('results').scrollIntoView({behavior:'smooth', block:'start'});
   });
 
   function render(r){
@@ -3445,6 +3484,175 @@
   })();
 
   // ============================================================
+  // GRADE DE PRAZOS + CÁLCULO AUTOMÁTICO (Empréstimo e Renegociação)
+  // O campo "Prazo total" foi substituído por quadros de prazo fixos
+  // (12/24/36/48/60/72/120 + Personalizado). Tudo recalcula sozinho a
+  // cada dado alterado; tocar num quadro define o prazo usado no
+  // resumo, na tabela detalhada e no PDF. Os inputs #prazo/#prazoSac/
+  // #renegPrazo/#renegPrazoSac viraram hidden e guardam o prazo
+  // selecionado — o motor de cálculo continua lendo deles, intacto.
+  // ============================================================
+  const PRAZOS_GRADE = [12,24,36,48,60,72,120];
+  let prazoSelecionado = 60;
+  let prazoSelecionadoReneg = 60;
+  let suprimirScrollResultados = false;
+
+  function montarGradePrazos(gridId, persInputId){
+    const grid = $(gridId);
+    let html = '';
+    PRAZOS_GRADE.forEach(p=>{
+      html += `<div class="prazo-card" data-prazo="${p}"><div class="pz-title">${p} meses</div><div class="pz-body pz-vazio">—</div></div>`;
+    });
+    html += `<div class="prazo-card" data-pers="1" data-prazo=""><div class="pz-title">Personalizado</div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
+    grid.innerHTML = html;
+  }
+  montarGradePrazos('gradePrazos','prazoPersInput');
+  montarGradePrazos('gradePrazosReneg','prazoPersInputReneg');
+
+  function fmtValorParcelaCurto(v){
+    return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
+  // linhas de parcelas de um prazo específico, lendo os mesmos inputs do cálculo normal
+  function linhasEmprestimoParaPrazo(prazoX){
+    const valorInformado = parseMoeda($('valorSimulacao'));
+    const taxaMensal = sistema==='SAC'
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
+    if(valorInformado<=0 || taxaMensal<=0) return null;
+    let carencia = Math.round(parseFloat($('carencia').value)||0);
+    carencia = Math.max(0, Math.min(carencia, prazoX-1));
+    const dataLiberacao = parseDataLiberacao();
+    const dataPrimeira = parseDataPrimeiraParcela();
+    let bruto = valorInformado;
+    if(tipoValor==='LIQUIDO') bruto = brutoDeLiquido(valorInformado, prazoX, carencia, taxaMensal, sistema, dataLiberacao, dataPrimeira);
+    return gerarTabela(bruto, taxaMensal, prazoX, carencia, sistema, dataLiberacao, dataPrimeira);
+  }
+  function linhasRenegParaPrazo(prazoX){
+    const valorFinanciar = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
+    const taxaMensal = sistemaReneg==='SAC'
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
+    if(valorFinanciar<=0 || taxaMensal<=0) return null;
+    let carencia = Math.round(parseFloat($('renegCarencia').value)||0);
+    carencia = Math.max(0, Math.min(carencia, prazoX-1));
+    return gerarTabela(valorFinanciar, taxaMensal, prazoX, carencia, sistemaReneg, parseDataRenegLiberacao(), parseDataRenegPrimeiraParcela());
+  }
+
+  function atualizarGradePrazos(gridId, persInputId, linhasFn, prazoSel){
+    const grid = $(gridId);
+    grid.querySelectorAll('.prazo-card').forEach(card=>{
+      const pers = card.dataset.pers==='1';
+      const pz = pers ? Math.round(parseFloat($(persInputId).value)||0) : parseInt(card.dataset.prazo,10);
+      const valido = pz>=1 && pz<=180;
+      const body = card.querySelector('.pz-body');
+      const linhas = valido ? linhasFn(pz) : null;
+      if(linhas){
+        body.className = 'pz-body';
+        body.innerHTML = '<div class="pz-list">' +
+          linhas.map(l=>`<div><span class="pn">${l.n}</span><span>${fmtValorParcelaCurto(l.parcela)}</span></div>`).join('') +
+          '</div>';
+      } else {
+        body.className = 'pz-body pz-vazio';
+        body.textContent = pers ? 'digite o nº de parcelas' : 'preencha valor e taxa';
+      }
+      if(pers) card.dataset.prazo = valido ? String(pz) : '';
+      card.classList.toggle('active', !!linhas && pz===prazoSel);
+    });
+  }
+
+  function aplicarPrazoEmprestimo(pz){
+    prazoSelecionado = pz;
+    $('prazo').value = pz;
+    $('prazoSac').value = pz;
+    atualizarResumoCarenciaEmprestimo();
+  }
+  function aplicarPrazoReneg(pz){
+    prazoSelecionadoReneg = pz;
+    $('renegPrazo').value = pz;
+    $('renegPrazoSac').value = pz;
+    atualizarResumoCarenciaReneg();
+  }
+
+  function executarAutoCalcEmprestimo(){
+    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado);
+    const valor = parseMoeda($('valorSimulacao'));
+    const taxa = sistema==='SAC'
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
+    if(valor>0 && taxa>0){
+      suprimirScrollResultados = true;
+      try{ $('btnCalcular').click(); } finally { suprimirScrollResultados = false; }
+    }
+  }
+  function executarAutoCalcReneg(){
+    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg);
+    const vf = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
+    const taxa = sistemaReneg==='SAC'
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
+    if(vf>0 && taxa>0){
+      suprimirScrollResultados = true;
+      try{ $('btnCalcularReneg').click(); } finally { suprimirScrollResultados = false; }
+    }
+  }
+
+  let autoCalcTimerEmp = null, autoCalcTimerReneg = null;
+  function agendarAutoCalcEmprestimo(){ clearTimeout(autoCalcTimerEmp); autoCalcTimerEmp = setTimeout(executarAutoCalcEmprestimo, 300); }
+  function agendarAutoCalcReneg(){ clearTimeout(autoCalcTimerReneg); autoCalcTimerReneg = setTimeout(executarAutoCalcReneg, 300); }
+
+  // seleção de prazo tocando no quadro
+  $('gradePrazos').addEventListener('click', e=>{
+    if(e.target.classList.contains('pz-input')) return; // foco no campo, sem trocar seleção
+    const card = e.target.closest('.prazo-card'); if(!card) return;
+    const pz = parseInt(card.dataset.prazo,10);
+    if(!(pz>=1)) return;
+    aplicarPrazoEmprestimo(pz);
+    executarAutoCalcEmprestimo();
+  });
+  $('gradePrazosReneg').addEventListener('click', e=>{
+    if(e.target.classList.contains('pz-input')) return;
+    const card = e.target.closest('.prazo-card'); if(!card) return;
+    const pz = parseInt(card.dataset.prazo,10);
+    if(!(pz>=1)) return;
+    aplicarPrazoReneg(pz);
+    executarAutoCalcReneg();
+  });
+
+  // preencher o Personalizado já seleciona esse prazo e simula
+  $('prazoPersInput').addEventListener('input', ()=>{
+    const pz = Math.round(parseFloat($('prazoPersInput').value)||0);
+    if(pz>=1 && pz<=180) aplicarPrazoEmprestimo(pz);
+    agendarAutoCalcEmprestimo();
+  });
+  $('prazoPersInputReneg').addEventListener('input', ()=>{
+    const pz = Math.round(parseFloat($('prazoPersInputReneg').value)||0);
+    if(pz>=1 && pz<=180) aplicarPrazoReneg(pz);
+    agendarAutoCalcReneg();
+  });
+
+  // qualquer dado alterado no modo recalcula tudo (delegação de eventos)
+  ['input','change'].forEach(ev=>{
+    $('modoEmprestimo').addEventListener(ev, e=>{
+      if(e.target.closest('#results')) return;
+      agendarAutoCalcEmprestimo();
+    });
+    $('modoRenegociacao').addEventListener(ev, e=>{
+      if(e.target.closest('#resultsReneg')) return;
+      agendarAutoCalcReneg();
+    });
+  });
+  // botões de segmento (PRICE/SAC, bruto/líquido, fundo, IOF) não disparam input/change
+  $('modoEmprestimo').addEventListener('click', e=>{
+    if(e.target.closest('#results') || e.target.closest('#gradePrazos')) return;
+    if(e.target.closest('.seg button')) agendarAutoCalcEmprestimo();
+  });
+  $('modoRenegociacao').addEventListener('click', e=>{
+    if(e.target.closest('#resultsReneg') || e.target.closest('#gradePrazosReneg')) return;
+    if(e.target.closest('.seg button')) agendarAutoCalcReneg();
+  });
+
+  // ============================================================
   // BOTÃO FLUTUANTE: reiniciar cálculo do modo atual
   // ============================================================
   function segClick(segId, val){
@@ -3460,10 +3668,13 @@
     $('valorSimulacao').value = '';
     segClick('seg-tipoValor','BRUTO');
     $('taxaMensal').value = '';
-    $('prazo').value = '';
+    $('prazo').value = '60';
     $('taxaPre').value = '';
     $('taxaPos').value = '';
-    $('prazoSac').value = '';
+    $('prazoSac').value = '60';
+    prazoSelecionado = 60;
+    $('prazoPersInput').value = '';
+    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado);
     $('carencia').value = '0';
     $('dataLiberacao').value = toISODate(new Date());
     primeiraParcelaEditadaManualmente = false;
@@ -3494,10 +3705,13 @@
     $('renegValorEntrada').value = '';
     atualizarValorFinanciar();
     $('renegTaxaMensal').value = '';
-    $('renegPrazo').value = '';
+    $('renegPrazo').value = '60';
     $('renegTaxaPre').value = '';
     $('renegTaxaPos').value = '';
-    $('renegPrazoSac').value = '';
+    $('renegPrazoSac').value = '60';
+    prazoSelecionadoReneg = 60;
+    $('prazoPersInputReneg').value = '';
+    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg);
     $('renegCarencia').value = '0';
     $('renegDataLiberacao').value = toISODate(new Date());
     renegPrimeiraParcelaEditadaManualmente = false;
