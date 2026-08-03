@@ -157,6 +157,12 @@
     padding-bottom:6px;border-bottom:1px solid var(--line);
   }
   .prazo-card.active .pz-title{color:var(--teal-dim);}
+  .prazo-card .pz-select{
+    display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-faint);
+    padding:2px 0 5px;cursor:pointer;
+  }
+  .prazo-card .pz-select input{width:13px;height:13px;cursor:pointer;}
+  .prazo-card .pz-select.hidden{display:none;}
   .prazo-card .pz-sub{
     font-size:9px;line-height:1.3;text-align:center;color:var(--ink-faint);
     font-weight:600;padding:2px 0 3px;
@@ -554,14 +560,9 @@
     <p class="card-title">Parcelas por prazo</p>
     <div class="prazo-grid" id="gradePrazos"></div>
     <p class="hint">Tudo calcula sozinho conforme você preenche — cada quadro mostra as parcelas daquele prazo. Toque num quadro para usá-lo no resumo, na tabela detalhada e no PDF; no "Personalizado", digite o nº de parcelas.</p>
-  </section>
-
-  <section class="card">
-    <p class="card-title">Imprimir mais de uma simulação</p>
-    <button type="button" class="btn-ghost" id="btnAbrirSeletorMulti">Selecionar simulações para imprimir</button>
-    <div class="hidden" id="painelSeletorMulti" style="margin-top:12px;">
-      <div id="checksMultiPrazo" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-      <p class="hint">Marque os prazos que quiser incluir — todos os já calculados vêm marcados por padrão. A folha impressa/PDF mostra cada prazo numa coluna (valor bruto, líquido, taxa nominal, CET) com a lista de parcelas — data e valor — embaixo. Vale tanto para PRICE quanto SAC.</p>
+    <button type="button" class="btn-ghost" id="btnAbrirSeletorMulti" style="margin-top:10px;">Selecionar simulações para imprimir</button>
+    <p class="hint" id="hintSelecaoMulti" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Selecionando mais de um, aparecem os botões pra imprimir/baixar todos juntos — um por coluna, com valor bruto, líquido, taxa nominal, CET e a lista de parcelas (data e valor). Vale tanto para PRICE quanto SAC.</p>
+    <div class="hidden" id="botoesMultiPrint" style="margin-top:12px;">
       <div class="btn-row">
         <button class="btn-ghost" id="btnImprimirMulti">Imprimir várias</button>
         <button class="btn-ghost" id="btnBaixarMulti">Baixar várias (PDF)</button>
@@ -3564,11 +3565,13 @@
 
   function montarGradePrazos(gridId, persInputId){
     const grid = $(gridId);
+    const comSelecao = gridId==='gradePrazos'; // só o Empréstimo tem o seletor de impressão múltipla
+    const selecionadorHtml = '<label class="pz-select hidden"><input type="checkbox" class="chk-select-prazo"> selecionar</label>';
     let html = '';
     PRAZOS_GRADE.forEach(p=>{
-      html += `<div class="prazo-card" data-prazo="${p}"><div class="pz-title">${p} meses</div><div class="pz-sub"></div><div class="pz-body pz-vazio">—</div></div>`;
+      html += `<div class="prazo-card" data-prazo="${p}">${comSelecao?selecionadorHtml:''}<div class="pz-title">${p} meses</div><div class="pz-sub"></div><div class="pz-body pz-vazio">—</div></div>`;
     });
-    html += `<div class="prazo-card" data-pers="1" data-prazo=""><div class="pz-title">Personalizado</div><div class="pz-sub"></div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
+    html += `<div class="prazo-card" data-pers="1" data-prazo="">${comSelecao?selecionadorHtml:''}<div class="pz-title">Personalizado</div><div class="pz-sub"></div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
     grid.innerHTML = html;
   }
   montarGradePrazos('gradePrazos','prazoPersInput');
@@ -3666,7 +3669,13 @@
       }
       if(pers) card.dataset.prazo = valido ? String(pz) : '';
       card.classList.toggle('active', !!linhas && pz===prazoSel);
+      const selecao = card.querySelector('.pz-select');
+      if(selecao){
+        selecao.classList.toggle('hidden', !(modoSelecaoMultiAtiva && !!linhas));
+        if(!linhas){ const chk = selecao.querySelector('input'); if(chk && chk.checked){ chk.checked = false; } }
+      }
     });
+    if(gridId==='gradePrazos') atualizarBotoesMultiPrint();
   }
 
   function aplicarPrazoEmprestimo(pz){
@@ -3712,6 +3721,7 @@
   // seleção de prazo tocando no quadro
   $('gradePrazos').addEventListener('click', e=>{
     if(e.target.classList.contains('pz-input')) return; // foco no campo, sem trocar seleção
+    if(e.target.closest('.pz-select')) return; // clique no seletor de impressão múltipla, não troca o prazo ativo
     const card = e.target.closest('.prazo-card'); if(!card) return;
     const pz = parseInt(card.dataset.prazo,10);
     if(!(pz>=1)) return;
@@ -3747,22 +3757,22 @@
   // mecanismo de tabela pivotada e ajuste de fonte por largura já usado no modo
   // Investimentos (classe .p-pivot).
   // ============================================================
-  function popularSeletorMulti(){
-    const opcoes = [];
-    PRAZOS_GRADE.forEach(pz=>{ if(linhasEmprestimoParaPrazo(pz)) opcoes.push(pz); });
-    const pers = Math.round(parseFloat($('prazoPersInput').value)||0);
-    if(pers>=1 && pers<=180 && !opcoes.includes(pers) && linhasEmprestimoParaPrazo(pers)) opcoes.push(pers);
-    $('checksMultiPrazo').innerHTML = opcoes.map(pz=>
-      `<label style="display:flex;align-items:center;gap:6px;background:var(--navy-900);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;">
-        <input type="checkbox" class="chk-multi-prazo" data-prazo="${pz}" checked> ${pz} meses
-      </label>`
-    ).join('') || '<p class="hint" style="margin:0;">Preencha valor e taxa pra ter prazos calculados.</p>';
+  let modoSelecaoMultiAtiva = false;
+  function atualizarBotoesMultiPrint(){
+    const n = document.querySelectorAll('#gradePrazos .chk-select-prazo:checked').length;
+    $('botoesMultiPrint').classList.toggle('hidden', n<2);
   }
   $('btnAbrirSeletorMulti').addEventListener('click', ()=>{
-    const painel = $('painelSeletorMulti');
-    const vaiAbrir = painel.classList.contains('hidden');
-    if(vaiAbrir) popularSeletorMulti();
-    painel.classList.toggle('hidden');
+    modoSelecaoMultiAtiva = !modoSelecaoMultiAtiva;
+    $('btnAbrirSeletorMulti').textContent = modoSelecaoMultiAtiva ? 'Cancelar seleção' : 'Selecionar simulações para imprimir';
+    $('hintSelecaoMulti').style.display = modoSelecaoMultiAtiva ? '' : 'none';
+    if(!modoSelecaoMultiAtiva){
+      document.querySelectorAll('#gradePrazos .chk-select-prazo').forEach(c=>c.checked=false);
+    }
+    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado,parseDataLiberacao,()=>carenciaValor('carencia'));
+  });
+  $('gradePrazos').addEventListener('change', e=>{
+    if(e.target.classList.contains('chk-select-prazo')) atualizarBotoesMultiPrint();
   });
 
   const LINHAS_TOPO_MULTI_EMPRESTIMO = [
@@ -3812,7 +3822,9 @@
     $('pCols').classList.remove('duas-colunas');
   }
   function atualizarFolhaImpressaoMulti(){
-    const prazosMarcados = Array.from(document.querySelectorAll('.chk-multi-prazo:checked')).map(c=>parseInt(c.dataset.prazo,10));
+    const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazos .chk-select-prazo:checked'))
+      .map(c=>parseInt(c.closest('.prazo-card').dataset.prazo,10))
+      .filter(pz=>pz>=1);
     if(!prazosMarcados.length) return null;
     const selecionados = prazosMarcados.map(pz=>{
       const resumo = resumoEmprestimoParaPrazo(pz);
@@ -3859,7 +3871,7 @@
     if(!t || !t.closest) return;
     if(t.closest('#results') || t.closest('#resultsReneg')) return;
     if(t.closest('#gradePrazos') || t.closest('#gradePrazosReneg')) return; // grades já tratadas acima
-    if(t.closest('#painelSeletorMulti') || t.id==='btnAbrirSeletorMulti') return; // seletor de impressão múltipla
+    if(t.id==='btnAbrirSeletorMulti') return; // toggle do seletor de impressão múltipla
     if(e.type==='click'){
       const btn = t.closest('button');
       if(!btn) return;
@@ -3913,8 +3925,10 @@
     const adv = document.querySelector('#modoEmprestimo details.adv');
     if(adv) adv.removeAttribute('open');
     atualizarResumoCarenciaEmprestimo();
-    $('painelSeletorMulti').classList.add('hidden');
-    $('checksMultiPrazo').innerHTML = '';
+    modoSelecaoMultiAtiva = false;
+    $('btnAbrirSeletorMulti').textContent = 'Selecionar simulações para imprimir';
+    $('hintSelecaoMulti').style.display = 'none';
+    $('botoesMultiPrint').classList.add('hidden');
     $('results').style.display = 'none';
     lastResult = null;
   }
