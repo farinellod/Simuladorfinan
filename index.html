@@ -561,7 +561,7 @@
     <div class="prazo-grid" id="gradePrazos"></div>
     <p class="hint">Tudo calcula sozinho conforme você preenche — cada quadro mostra as parcelas daquele prazo. Toque num quadro para usá-lo no resumo, na tabela detalhada e no PDF; no "Personalizado", digite o nº de parcelas.</p>
     <button type="button" class="btn-ghost" id="btnAbrirSeletorMulti" style="margin-top:10px;">Selecionar simulações para imprimir</button>
-    <p class="hint" id="hintSelecaoMulti" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Selecionando mais de um, aparecem os botões pra imprimir/baixar todos juntos — um por coluna, com valor bruto, líquido, taxa nominal, CET e a lista de parcelas (data e valor). Vale tanto para PRICE quanto SAC.</p>
+    <p class="hint" id="hintSelecaoMulti" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Selecionando 2 ou mais, aparecem os botões pra gerar tudo junto — cada simulação sai numa folha própria, nos mesmos moldes de sempre (valor bruto/líquido, taxa, CET, encargos e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma. Vale tanto para PRICE quanto SAC.</p>
     <div class="hidden" id="botoesMultiPrint" style="margin-top:12px;">
       <div class="btn-row">
         <button class="btn-ghost" id="btnImprimirMulti">Imprimir várias</button>
@@ -2022,6 +2022,102 @@
 
   // Gera e baixa o PDF a partir do #printSheet já preenchido (reutilizável por
   // Empréstimo e Renegociação). Retorna true se conseguiu gerar, false se caiu no fallback.
+  // Captura o #printSheet ATUAL e desenha suas páginas dentro de um jsPDF já aberto.
+  // "estado.primeiraGlobal" controla se a 1ª fatia desta folha é a 1ª página do PDF
+  // inteiro (não chama addPage) ou se é uma nova folha entrando depois de outra(s)
+  // já desenhadas (aí sim chama addPage antes da 1ª fatia) — é o que permite juntar
+  // várias simulações inteiras, cada uma já paginando sozinha como sempre fez, num
+  // PDF só (1 simulação por página, e se ela mesma precisar de mais de uma folha por
+  // ter muitas parcelas, continua entrando normalmente, igual já fazia sozinha).
+  async function capturarFolhaAtualNoPDF(pdf, estado){
+    const sheet = $('printSheet');
+    sheet.classList.add('print-render');
+    await new Promise(res=>setTimeout(res, 150));
+    const larguraPx = Math.round(196 * 3.7795);
+
+    const sheetRect = sheet.getBoundingClientRect();
+    const linhasTabela = Array.from(sheet.querySelectorAll('#pCols table tbody tr'));
+    const linhasPos = linhasTabela.map(tr=>{
+      const r = tr.getBoundingClientRect();
+      return { top: r.top - sheetRect.top, bottom: r.bottom - sheetRect.top };
+    });
+    const theadEl = sheet.querySelector('#pCols table thead');
+    const theadRectCss = theadEl ? (()=>{ const r = theadEl.getBoundingClientRect(); return { top: r.top-sheetRect.top, bottom: r.bottom-sheetRect.top }; })() : null;
+
+    const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: larguraPx, width: larguraPx});
+    sheet.classList.remove('print-render');
+
+    if(!canvas || !canvas.width || !canvas.height){
+      throw new Error('Canvas gerado com dimensões inválidas ('+(canvas&&canvas.width)+'x'+(canvas&&canvas.height)+')');
+    }
+
+    const pageW = 210, pageH = 297, margin = 7;
+    const usableW = pageW - margin*2;
+    const usableH = pageH - margin*2;
+    const imgW = usableW;
+    const scale = imgW / canvas.width;
+    const usableHpx = Math.floor(usableH / scale);
+    const cssParaCanvasPx = canvas.width / larguraPx;
+    const theadTopPx = theadRectCss ? theadRectCss.top*cssParaCanvasPx : 0;
+    const theadAlturaPx = theadRectCss ? Math.round((theadRectCss.bottom-theadRectCss.top)*cssParaCanvasPx) : 0;
+
+    function desenharPagina(offsetYpx, alturaPx, repetirCabecalho){
+      const comCabecalho = repetirCabecalho && theadAlturaPx>0;
+      const alturaTotal = alturaPx + (comCabecalho? theadAlturaPx : 0);
+      const fatiaCanvas = document.createElement('canvas');
+      fatiaCanvas.width = canvas.width;
+      fatiaCanvas.height = alturaTotal;
+      const ctx = fatiaCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, fatiaCanvas.width, fatiaCanvas.height);
+      let destY = 0;
+      if(comCabecalho){
+        ctx.drawImage(canvas, 0, theadTopPx, canvas.width, theadAlturaPx, 0, 0, canvas.width, theadAlturaPx);
+        destY = theadAlturaPx;
+      }
+      ctx.drawImage(canvas, 0, offsetYpx, canvas.width, alturaPx, 0, destY, canvas.width, alturaPx);
+      if(!estado.primeiraGlobal) pdf.addPage();
+      estado.primeiraGlobal = false;
+      const imgH = alturaTotal * scale;
+      const x = (pageW - imgW)/2;
+      pdf.addImage(fatiaCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, imgW, imgH);
+    }
+
+    if(canvas.height <= usableHpx){
+      desenharPagina(0, canvas.height, false);
+    } else if(!linhasPos.length){
+      let offsetY = 0;
+      while(offsetY < canvas.height){
+        const altura = Math.min(usableHpx, canvas.height - offsetY);
+        desenharPagina(offsetY, altura, offsetY>0);
+        offsetY += altura;
+      }
+    } else {
+      let offsetY = 0;
+      let i = 0;
+      while(offsetY < canvas.height){
+        const orcamentoPagina = offsetY===0 ? usableHpx : Math.max(1, usableHpx - theadAlturaPx);
+        const limite = offsetY + orcamentoPagina;
+        let corte = Math.min(canvas.height, limite);
+        let ultimaQueCoube = -1;
+        while(i < linhasPos.length && linhasPos[i].bottom*cssParaCanvasPx <= limite){
+          ultimaQueCoube = i;
+          i++;
+        }
+        if(ultimaQueCoube >= 0 && linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx > offsetY){
+          corte = linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx;
+        }
+        if(i >= linhasPos.length && (canvas.height - offsetY) <= orcamentoPagina){
+          corte = canvas.height;
+        }
+        if(corte <= offsetY) corte = limite;
+        const altura = Math.min(corte, canvas.height) - offsetY;
+        desenharPagina(offsetY, altura, offsetY>0);
+        offsetY += altura;
+      }
+    }
+  }
+
   async function gerarEBaixarPDF(nomeArquivo, btn){
     if(typeof html2canvas==='undefined' || !window.jspdf){
       alert('Para baixar o PDF é preciso conexão com a internet. Vou abrir a impressão — escolha "Salvar como PDF".');
@@ -2032,116 +2128,58 @@
     btn.textContent = 'Gerando PDF...';
     btn.disabled = true;
     try{
-      const sheet = $('printSheet');
-      sheet.classList.add('print-render');
-      // espera o layout (fontes, grid, variáveis CSS) assentar antes de capturar
-      await new Promise(res=>setTimeout(res, 150));
-      // largura fixa em px (196mm a 96dpi) — evita ambiguidade de scrollWidth em
-      // elemento fora da tela (position:fixed; left:-9999px)
-      const larguraPx = Math.round(196 * 3.7795);
-
-      // posição (em px CSS, relativa ao topo da folha) de cada linha da tabela —
-      // usado depois pra cortar a página exatamente entre duas linhas, nunca no meio de uma.
-      const sheetRect = sheet.getBoundingClientRect();
-      const linhasTabela = Array.from(sheet.querySelectorAll('#pCols table tbody tr'));
-      const linhasPos = linhasTabela.map(tr=>{
-        const r = tr.getBoundingClientRect();
-        return { top: r.top - sheetRect.top, bottom: r.bottom - sheetRect.top };
-      });
-      // cabeçalho da tabela (#, Data, Parcela...) — repetido no topo das páginas 2+
-      const theadEl = sheet.querySelector('#pCols table thead');
-      const theadRectCss = theadEl ? (()=>{ const r = theadEl.getBoundingClientRect(); return { top: r.top-sheetRect.top, bottom: r.bottom-sheetRect.top }; })() : null;
-
-      const canvas = await html2canvas(sheet, {scale: 2, backgroundColor: '#ffffff', windowWidth: larguraPx, width: larguraPx});
-      sheet.classList.remove('print-render');
-
-      if(!canvas || !canvas.width || !canvas.height){
-        throw new Error('Canvas gerado com dimensões inválidas ('+(canvas&&canvas.width)+'x'+(canvas&&canvas.height)+')');
-      }
-
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-      const pageW = 210, pageH = 297, margin = 7;
-      const usableW = pageW - margin*2;
-      const usableH = pageH - margin*2;
-      const imgW = usableW;
-      const scale = imgW / canvas.width; // mm por pixel do canvas, na largura já ajustada
-      const usableHpx = Math.floor(usableH / scale); // altura de 1 página, em pixels do canvas
-      const cssParaCanvasPx = canvas.width / larguraPx; // fator de conversão px CSS → px do canvas
-      const theadTopPx = theadRectCss ? theadRectCss.top*cssParaCanvasPx : 0;
-      const theadAlturaPx = theadRectCss ? Math.round((theadRectCss.bottom-theadRectCss.top)*cssParaCanvasPx) : 0;
-
-      function desenharPagina(offsetYpx, alturaPx, primeira, repetirCabecalho){
-        const comCabecalho = repetirCabecalho && theadAlturaPx>0;
-        const alturaTotal = alturaPx + (comCabecalho? theadAlturaPx : 0);
-        const fatiaCanvas = document.createElement('canvas');
-        fatiaCanvas.width = canvas.width;
-        fatiaCanvas.height = alturaTotal;
-        const ctx = fatiaCanvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, fatiaCanvas.width, fatiaCanvas.height);
-        let destY = 0;
-        if(comCabecalho){
-          ctx.drawImage(canvas, 0, theadTopPx, canvas.width, theadAlturaPx, 0, 0, canvas.width, theadAlturaPx);
-          destY = theadAlturaPx;
-        }
-        ctx.drawImage(canvas, 0, offsetYpx, canvas.width, alturaPx, 0, destY, canvas.width, alturaPx);
-        if(!primeira) pdf.addPage();
-        const imgH = alturaTotal * scale;
-        const x = (pageW - imgW)/2;
-        pdf.addImage(fatiaCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, margin, imgW, imgH);
-      }
-
-      if(canvas.height <= usableHpx){
-        // cabe tudo numa página só — comportamento de sempre
-        desenharPagina(0, canvas.height, true, false);
-      } else if(!linhasPos.length){
-        // sem tabela de linhas pra guiar o corte (não deveria acontecer) — fatia no pixel mesmo
-        let offsetY = 0, primeira = true;
-        while(offsetY < canvas.height){
-          const altura = Math.min(usableHpx, canvas.height - offsetY);
-          desenharPagina(offsetY, altura, primeira, !primeira);
-          offsetY += altura; primeira = false;
-        }
-      } else {
-        // fatia respeitando as linhas da tabela: cada página vai até o fim da última
-        // linha que couber inteira; a próxima começa exatamente no início da linha seguinte,
-        // repetindo o cabeçalho da tabela no topo (por isso o orçamento de altura da página
-        // encolhe pela altura do cabeçalho a partir da 2ª página).
-        let offsetY = 0, primeira = true;
-        let i = 0;
-        while(offsetY < canvas.height){
-          const orcamentoPagina = primeira ? usableHpx : Math.max(1, usableHpx - theadAlturaPx);
-          const limite = offsetY + orcamentoPagina;
-          let corte = Math.min(canvas.height, limite);
-          // avança até a última linha cujo fim ainda cabe dentro do limite da página
-          let ultimaQueCoube = -1;
-          while(i < linhasPos.length && linhasPos[i].bottom*cssParaCanvasPx <= limite){
-            ultimaQueCoube = i;
-            i++;
-          }
-          if(ultimaQueCoube >= 0 && linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx > offsetY){
-            corte = linhasPos[ultimaQueCoube].bottom*cssParaCanvasPx;
-          }
-          // se já processou todas as linhas e o que sobra (ex.: aviso de rodapé) cabe
-          // no espaço que ainda resta nesta página, não cria uma página extra só pra isso.
-          if(i >= linhasPos.length && (canvas.height - offsetY) <= orcamentoPagina){
-            corte = canvas.height;
-          }
-          // evita loop infinito caso uma única linha seja mais alta que a página inteira
-          if(corte <= offsetY) corte = limite;
-          const altura = Math.min(corte, canvas.height) - offsetY;
-          desenharPagina(offsetY, altura, primeira, !primeira);
-          offsetY += altura; primeira = false;
-        }
-      }
-
+      await capturarFolhaAtualNoPDF(pdf, {primeiraGlobal:true});
       pdf.save(nomeArquivo);
       return true;
     }catch(e){
       $('printSheet').classList.remove('print-render');
       console.error('Erro ao gerar PDF:', e);
       alert('Não foi possível gerar o PDF automaticamente. Use "Imprimir simulação" e salve como PDF.');
+      return false;
+    }finally{
+      btn.textContent = orig;
+      btn.disabled = false;
+    }
+  }
+
+  // Baixa (ou abre pra impressão) VÁRIAS simulações num PDF só, uma por página (se uma
+  // delas sozinha já precisar de mais de uma folha por ter muitas parcelas, ela
+  // continua normalmente nas folhas seguintes, do jeito que já funciona pra 1
+  // simulação). "itens" é qualquer lista; "preencherFn(item)" deve chamar
+  // preencherFolhaImpressao(...) pra deixar a #printSheet pronta com os dados daquele
+  // item antes da captura. modo='salvar' baixa o arquivo; modo='imprimir' abre o PDF
+  // numa aba nova já disparando a caixa de impressão do navegador (não dá pra imprimir
+  // várias folhas direto da página com window.print(), que só enxerga o DOM atual).
+  async function gerarEBaixarPDFMultiplo(nomeArquivo, btn, itens, preencherFn, modo){
+    if(typeof html2canvas==='undefined' || !window.jspdf){
+      alert('Para baixar/imprimir várias simulações de uma vez é preciso conexão com a internet.');
+      return false;
+    }
+    const orig = btn.textContent;
+    btn.textContent = modo==='imprimir' ? 'Preparando...' : 'Gerando PDF...';
+    btn.disabled = true;
+    try{
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+      const estado = {primeiraGlobal:true};
+      for(const item of itens){
+        preencherFn(item);
+        await new Promise(res=>setTimeout(res, 30));
+        await capturarFolhaAtualNoPDF(pdf, estado);
+      }
+      if(modo==='imprimir'){
+        pdf.autoPrint();
+        window.open(pdf.output('bloburl'), '_blank');
+      } else {
+        pdf.save(nomeArquivo);
+      }
+      return true;
+    }catch(e){
+      $('printSheet').classList.remove('print-render');
+      console.error('Erro ao gerar PDF (várias simulações):', e);
+      alert('Não foi possível gerar o PDF automaticamente. Tente uma simulação por vez.');
       return false;
     }finally{
       btn.textContent = orig;
@@ -3614,7 +3652,7 @@
     const ded = calcDeducoes(bruto, prazoX, carencia, taxaMensal, sistema, dataLiberacao, dataPrimeira);
     const liquido = bruto - ded.total;
     const cetObj = calcCET(liquido, linhas, dataLiberacao);
-    return {bruto, liquido, taxaMensal, cetMensal: cetObj.cetMensal, cetAnual: cetObj.cetAnual, linhas};
+    return {prazo:prazoX, bruto, liquido, taxaMensal, cetMensal: cetObj.cetMensal, cetAnual: cetObj.cetAnual, linhas, ded, carencia, dataLiberacao};
   }
   function linhasRenegParaPrazo(prazoX){
     const valorFinanciar = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
@@ -3775,90 +3813,65 @@
     if(e.target.classList.contains('chk-select-prazo')) atualizarBotoesMultiPrint();
   });
 
-  const LINHAS_TOPO_MULTI_EMPRESTIMO = [
-    {header:'Valor bruto', cell:r=>fmtBRL(r.bruto)},
-    {header:'Valor líquido', cell:r=>fmtBRL(r.liquido)},
-    {header:'Taxa nominal (a.m.)', cell:r=>fmtPct(r.taxaMensal/100)},
-    {header:'CET (a.m. / a.a.)', cell:r=>`${fmtPct(r.cetMensal)} / ${fmtPct(r.cetAnual)}`},
-  ];
-  function ajustarFontePivotMulti(selecionados, maxN){
-    const CHAR_W = 0.62;
-    const usableWidthPX = 196*3.7795;
-    function largura(fs){
-      const padX = Math.max(1, fs*0.35)*2;
-      const rotulos = [...LINHAS_TOPO_MULTI_EMPRESTIMO.map(l=>l.header), ...Array.from({length:maxN},(_,i)=>'Parcela '+(i+1))];
-      const labelW = Math.max(...rotulos.map(t=>t.length))*fs*CHAR_W + padX;
-      let colsW = 0;
-      selecionados.forEach(s=>{
-        const textos = [s.label,
-          ...LINHAS_TOPO_MULTI_EMPRESTIMO.map(l=>String(l.cell(s.resumo))),
-          ...s.resumo.linhas.map(l=>`${fmtData(l.data)} ${fmtBRL(l.parcela)}`)];
-        const maxLen = Math.max(...textos.map(t=>t.length));
-        colsW += maxLen*fs*CHAR_W + padX;
-      });
-      return labelW + colsW;
+  // Preenche a #printSheet pra UM prazo específico, exatamente nos mesmos moldes do
+  // print de uma simulação só (mesmos rótulos, mesmas colunas, mesmo algoritmo de
+  // fonte/paginação) — só troca o título pra incluir o prazo em negrito no topo.
+  function preencherFolhaParaPrazo(item){
+    const r = item.resumo;
+    const d = r.ded;
+    const pInfo = d.prestamistaInfo;
+    let prestamistaLabel = 'Seguro prestamista';
+    if(d.prestamistaAtiva){
+      if(pInfo && pInfo.ok){
+        prestamistaLabel += ` (${pInfo.idade} anos · ${fmtPct(pInfo.taxaIdade)} a.m.)`;
+      } else if(pInfo && !pInfo.ok){
+        prestamistaLabel += ' (fora da faixa etária permitida: 18 a 80 anos)';
+      } else {
+        prestamistaLabel += ' (informe a data de nascimento)';
+      }
     }
-    let lo=4, hi=12;
-    for(let k=0;k<40;k++){ const mid=(lo+hi)/2; if(largura(mid)<=usableWidthPX) lo=mid; else hi=mid; }
-    return lo;
-  }
-  function montarPivotMultiEmprestimo(selecionados){
-    const maxN = Math.max(...selecionados.map(s=>s.resumo.linhas.length));
-    const fs = ajustarFontePivotMulti(selecionados, maxN);
-    $('printSheet').style.setProperty('--pivot-fs', fs.toFixed(2)+'px');
-
-    let thead = '<tr><th class="row-label">Prazo</th>' + selecionados.map(s=>`<th>${s.label}</th>`).join('') + '</tr>';
-    let tbody = '';
-    LINHAS_TOPO_MULTI_EMPRESTIMO.forEach(l=>{
-      tbody += `<tr><td class="row-label">${l.header}</td>` + selecionados.map(s=>`<td>${l.cell(s.resumo)}</td>`).join('') + '</tr>';
+    const rows = [
+      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
+      {label:'Comissão '+(fundo==='FAMPE_MULHER'?'FAMPE Mulher':fundo), val: d.comissao, active:d.comissaoAtiva},
+      {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
+      {label:'Demais tarifas', val: d.demais, active:d.demaisAtiva},
+    ];
+    const primeiraParcela = r.linhas.find(l=>!l.carencia) || r.linhas[0];
+    preencherFolhaImpressao({
+      sistema: `${sistema} — ${item.prazo} meses`,
+      sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${item.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
+      brutoLabel: 'Valor bruto', brutoVal: fmtBRL(r.bruto),
+      liquidoLabel: 'Valor líquido', liquidoVal: fmtBRL(r.liquido),
+      extras: [],
+      parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
+      taxaNominal: fmtPct(r.taxaMensal/100),
+      cet: fmtPct(r.cetMensal),
+      dedRows: rows.map(row=>({label:row.label, active:row.active, val:fmtBRL(row.val)})),
+      dedTotalLabel: 'Total de encargos', dedTotalVal: fmtBRL(d.total),
+      linhas: r.linhas
     });
-    for(let i=0; i<maxN; i++){
-      tbody += `<tr><td class="row-label">Parcela ${i+1}</td>` + selecionados.map(s=>{
-        const l = s.resumo.linhas[i];
-        return `<td>${l ? fmtData(l.data)+'<br>'+fmtBRL(l.parcela) : '—'}</td>`;
-      }).join('') + '</tr>';
-    }
-    $('pCols').innerHTML = `<table class="p-pivot"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
-    $('pCols').classList.remove('duas-colunas');
   }
-  function atualizarFolhaImpressaoMulti(){
+  function selecionadosMulti(){
     const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazos .chk-select-prazo:checked'))
       .map(c=>parseInt(c.closest('.prazo-card').dataset.prazo,10))
       .filter(pz=>pz>=1);
-    if(!prazosMarcados.length) return null;
-    const selecionados = prazosMarcados.map(pz=>{
+    return prazosMarcados.map(pz=>{
       const resumo = resumoEmprestimoParaPrazo(pz);
-      return resumo ? {prazo:pz, label: pz+' meses', resumo} : null;
+      return resumo ? {prazo:pz, resumo} : null;
     }).filter(Boolean);
-    if(!selecionados.length) return null;
-
-    preencherFolhaImpressao({
-      sistema: `Simulação ${sistema} — Comparativo de Prazos`,
-      sub: `${selecionados.length} prazo(s): ${selecionados.map(s=>s.label).join(', ')} · Gerado em ${fmtData(new Date())}`,
-      kpis: [
-        {label:'Sistema', value: sistema},
-        {label:'Valor informado', value: fmtBRL(parseMoeda($('valorSimulacao')))},
-        {label:'Tipo', value: tipoValor==='LIQUIDO' ? 'Líquido' : 'Bruto'},
-        {label:'Prazos comparados', value: String(selecionados.length)},
-      ],
-      extras: [],
-      dedRows: [],
-      linhas: selecionados,
-      colunas: [{header:'Prazo', cell:s=>s.label}],
-    });
-    montarPivotMultiEmprestimo(selecionados);
-    return selecionados;
   }
-  $('btnImprimirMulti').addEventListener('click', ()=>{
-    const sel = atualizarFolhaImpressaoMulti();
-    if(!sel){ alert('Marque ao menos um prazo pra imprimir.'); return; }
-    imprimirSimulacao(true, ()=>{});
+  $('btnImprimirMulti').addEventListener('click', async ()=>{
+    const sel = selecionadosMulti();
+    if(sel.length<2){ alert('Marque pelo menos 2 simulações pra imprimir.'); return; }
+    const nome = montarNomePDF([nomeAssociadoParaArquivo(), 'comparativo-prazos', sel.length+'simulacoes']);
+    await gerarEBaixarPDFMultiplo(nome, $('btnImprimirMulti'), sel, preencherFolhaParaPrazo, 'imprimir');
   });
   $('btnBaixarMulti').addEventListener('click', async ()=>{
-    const sel = atualizarFolhaImpressaoMulti();
-    if(!sel){ alert('Marque ao menos um prazo pra imprimir.'); return; }
-    const nome = montarNomePDF([nomeAssociadoParaArquivo(), 'comparativo-prazos', sel.length+'prazos']);
-    await gerarEBaixarPDF(nome, $('btnBaixarMulti'));
+    const sel = selecionadosMulti();
+    if(sel.length<2){ alert('Marque pelo menos 2 simulações pra baixar.'); return; }
+    const nome = montarNomePDF([nomeAssociadoParaArquivo(), 'comparativo-prazos', sel.length+'simulacoes']);
+    await gerarEBaixarPDFMultiplo(nome, $('btnBaixarMulti'), sel, preencherFolhaParaPrazo, 'salvar');
   });
 
   // qualquer dado alterado no modo recalcula tudo — roteador GLOBAL em fase de
