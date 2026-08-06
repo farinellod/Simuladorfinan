@@ -157,12 +157,14 @@
     padding-bottom:6px;border-bottom:1px solid var(--line);
   }
   .prazo-card.active .pz-title{color:var(--teal-dim);}
-  .prazo-card .pz-select{
-    display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-faint);
-    padding:2px 0 5px;cursor:pointer;
+  /* modo de seleção múltipla (impressão): mesmo visual do .active, vários ao mesmo
+     tempo — não mexe no card .active de verdade (o resultado principal da tela) */
+  .prazo-card.selecionado{
+    border-color:var(--teal-dim);
+    background:linear-gradient(180deg,rgba(63,161,16,0.12),var(--navy-900));
+    box-shadow:0 0 0 1px var(--teal-dim);
   }
-  .prazo-card .pz-select input{width:13px;height:13px;cursor:pointer;}
-  .prazo-card .pz-select.hidden{display:none;}
+  .prazo-card.selecionado .pz-title{color:var(--teal-dim);}
   .prazo-card .pz-sub{
     font-size:9px;line-height:1.3;text-align:center;color:var(--ink-faint);
     font-weight:600;padding:2px 0 3px;
@@ -430,18 +432,18 @@
 
     <div class="field" style="margin-top:14px;" id="row-taxa-price">
       <label>Taxa de juros (% a.m.)</label>
-      <input type="text" id="taxaMensal" inputmode="decimal" placeholder="Insira a taxa" value="">
+      <input type="number" id="taxaMensal" step="0.01" placeholder="Insira a taxa" value="">
       <input type="hidden" id="prazo" value="60">
     </div>
     <div class="hidden" id="row-taxa-sac">
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
           <label>Taxa pré (% a.m.)</label>
-          <input type="text" id="taxaPre" inputmode="decimal" placeholder="Insira a taxa pré" value="">
+          <input type="number" id="taxaPre" step="0.01" placeholder="Insira a taxa pré" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pós / indexador (% a.m.)</label>
-          <input type="text" id="taxaPos" inputmode="decimal" placeholder="Insira a taxa pós" value="">
+          <input type="number" id="taxaPos" step="0.01" placeholder="Insira a taxa pós" value="">
           <div class="btn-row" style="margin-top:6px;">
             <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
             <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="taxaPos" data-status="taxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
@@ -454,7 +456,7 @@
     </div>
     <div class="field">
       <label>Carência (meses até o vencimento da 1ª parcela)</label>
-      <input type="number" id="carencia" inputmode="numeric" min="0" placeholder="1" value="">
+      <input type="number" id="carencia" min="0" placeholder="1" value="">
       <p class="parcelas-resumo" id="carenciaResumo"></p>
       <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação, e o plano continua com as 60 parcelas (a carência atrasa o início, não consome parcelas). No PRICE, os meses de carência só capitalizam juros (sem cobrança); a partir daí a parcela é nivelada sobre o saldo já capitalizado. No SAC não há capitalização prévia — a amortização já começa na 1ª parcela, só o juros dela é maior (reflete o intervalo todo desde a liberação).</p>
     </div>
@@ -564,7 +566,7 @@
       <button type="button" class="btn-ghost" id="btnAbrirSeletorMulti">Selecionar simulações para imprimir</button>
       <button type="button" class="btn-ghost" id="btnBaixarUnificado">Baixar simulação (PDF)</button>
     </div>
-    <p class="hint" id="hintSelecaoMulti" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada simulação numa folha própria, nos mesmos moldes de sempre (valor bruto/líquido, taxa, CET, encargos e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma. Vale tanto para PRICE quanto SAC.</p>
+    <p class="hint" id="hintSelecaoMulti" style="display:none;">Toque no quadro do prazo pra marcá-lo — fica com a borda verde. Toque de novo pra desmarcar. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada simulação numa folha própria, nos mesmos moldes de sempre (valor bruto/líquido, taxa, CET, encargos e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma. Vale tanto para PRICE quanto SAC.</p>
   </section>
 
   <button class="btn-primary" id="btnCalcular">Calcular simulação</button>
@@ -605,11 +607,11 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>IOF fixo (%)</label>
-          <input type="text" id="iofFixo" inputmode="decimal" value="0.38">
+          <input type="number" id="iofFixo" step="0.01" value="0.38">
         </div>
         <div class="field" style="margin-top:0;">
           <label>IOF diário (%)</label>
-          <input type="text" id="iofDiario" inputmode="decimal" value="0.0082">
+          <input type="number" id="iofDiario" step="0.0001" value="0.0082">
         </div>
       </div>
       <p class="hint">O seletor acima preenche o fixo e o diário automaticamente (PF/PJ: 0,38% + 0,0082% a.d. · PJ Simples Nacional: 0,38% + 0,00274% a.d.) — ainda editáveis na mão se precisar. O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
@@ -647,7 +649,7 @@
       <div class="row2" style="margin-top:14px;" id="row-taxa-price-reneg">
         <div class="field" style="margin-top:0;">
           <label>Taxa de juros (% a.m.)</label>
-          <input type="text" id="renegTaxaMensal" inputmode="decimal" placeholder="Insira a taxa" value="">
+          <input type="number" id="renegTaxaMensal" step="0.01" placeholder="Insira a taxa" value="">
           <input type="hidden" id="renegPrazo" value="60">
         </div>
       </div>
@@ -655,11 +657,11 @@
         <div class="row2" style="margin-top:14px;">
           <div class="field" style="margin-top:0;">
             <label>Taxa pré (% a.m.)</label>
-            <input type="text" id="renegTaxaPre" inputmode="decimal" placeholder="Insira a taxa pré" value="">
+            <input type="number" id="renegTaxaPre" step="0.01" placeholder="Insira a taxa pré" value="">
           </div>
           <div class="field" style="margin-top:0;">
             <label>Taxa pós / indexador (% a.m.)</label>
-            <input type="text" id="renegTaxaPos" inputmode="decimal" placeholder="Insira a taxa pós" value="">
+            <input type="number" id="renegTaxaPos" step="0.01" placeholder="Insira a taxa pós" value="">
             <div class="btn-row" style="margin-top:6px;">
               <button type="button" class="btn-ghost btn-indexador" data-tipo="SELIC" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar SELIC</button>
               <button type="button" class="btn-ghost btn-indexador" data-tipo="CDI" data-alvo="renegTaxaPos" data-status="renegTaxaPosIndexadorStatus" style="padding:6px 10px;font-size:12px;">Puxar CDI</button>
@@ -672,7 +674,7 @@
       </div>
       <div class="field">
         <label>Carência (meses até o vencimento da 1ª parcela)</label>
-        <input type="number" id="renegCarencia" inputmode="numeric" min="0" placeholder="1" value="">
+        <input type="number" id="renegCarencia" min="0" placeholder="1" value="">
         <p class="parcelas-resumo" id="renegCarenciaResumo"></p>
       </div>
       <div class="row2">
@@ -758,7 +760,7 @@
         <button type="button" class="btn-ghost" id="btnAbrirSeletorMultiReneg">Selecionar simulações para imprimir</button>
         <button type="button" class="btn-ghost" id="btnBaixarUnificadoReneg">Baixar simulação (PDF)</button>
       </div>
-      <p class="hint" id="hintSelecaoMultiReneg" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada renegociação numa folha própria, nos mesmos moldes de sempre (valor total, entrada, IOF, taxa, CET e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma.</p>
+      <p class="hint" id="hintSelecaoMultiReneg" style="display:none;">Toque no quadro do prazo pra marcá-lo — fica com a borda verde. Toque de novo pra desmarcar. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada renegociação numa folha própria, nos mesmos moldes de sempre (valor total, entrada, IOF, taxa, CET e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma.</p>
     </section>
 
     <button class="btn-primary" id="btnCalcularReneg">Calcular renegociação</button>
@@ -822,7 +824,7 @@
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa de desconto (% a.m.)</label>
-          <input type="text" id="descTaxa" inputmode="decimal" value="1.49">
+          <input type="number" id="descTaxa" step="0.01" value="1.49">
         </div>
       </div>
       <div class="row2">
@@ -899,7 +901,7 @@
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa de juros (% a.m.)</label>
-          <input type="text" id="quitTaxaMensal" inputmode="decimal" placeholder="Insira a taxa" value="">
+          <input type="number" id="quitTaxaMensal" step="0.01" placeholder="Insira a taxa" value="">
         </div>
       </div>
 
@@ -918,7 +920,7 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>Quantas vezes (prazo, máx. 120)</label>
-          <input type="number" id="quitPrazo" inputmode="numeric" max="120" min="1" placeholder="Insira o prazo" value="">
+          <input type="number" id="quitPrazo" max="120" min="1" placeholder="Insira o prazo" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Data da quitação</label>
@@ -927,7 +929,7 @@
       </div>
       <div class="field">
         <label>Carência (meses até o vencimento da 1ª parcela)</label>
-        <input type="number" id="quitCarencia" inputmode="numeric" min="0" value="0">
+        <input type="number" id="quitCarencia" min="0" value="0">
         <p class="parcelas-resumo" id="quitCarenciaResumo"></p>
         <div class="seg" id="seg-quitTipoCarencia" style="grid-template-columns:1fr 1fr;margin-top:10px;">
           <button type="button" data-val="CAPITALIZA" class="active">Capitaliza (sem cobrança)</button>
@@ -1017,7 +1019,7 @@
         </div>
         <div class="field" style="margin-top:0;">
           <label>Dias até o resgate</label>
-          <input type="number" id="investDiasResgate" inputmode="numeric" min="1" step="1" placeholder="Ex: 90">
+          <input type="number" id="investDiasResgate" min="1" step="1" placeholder="Ex: 90">
         </div>
       </div>
       <div class="row2">
@@ -1038,11 +1040,11 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>SELIC atual (% a.a.)</label>
-          <input type="text" id="investSelic" inputmode="decimal" placeholder="Insira a SELIC" value="">
+          <input type="number" id="investSelic" step="0.01" placeholder="Insira a SELIC" value="">
         </div>
         <div class="field" style="margin-top:0;">
           <label>CDI atual (% a.a.)</label>
-          <input type="text" id="investCdi" inputmode="decimal" placeholder="Insira o CDI" value="">
+          <input type="number" id="investCdi" step="0.01" placeholder="Insira o CDI" value="">
         </div>
       </div>
       <button type="button" class="btn-ghost btn-indexador-invest" id="btnPuxarSelicInvest" style="padding:8px 12px;font-size:13px;">Puxar SELIC</button>
@@ -1055,27 +1057,27 @@
       <div class="row2" id="gradeParametrosProduto">
         <div class="field" style="margin-top:0;">
           <label>% do CDI — Sicredinvest Pós SEM TRAVA</label>
-          <input type="text" id="investPctCdiSicredinvest" inputmode="decimal" value="93">
+          <input type="number" id="investPctCdiSicredinvest" step="0.01" value="93">
         </div>
         <div class="field hidden" id="campoPctCdiComTravaWrap" style="margin-top:0;">
           <label>% do CDI — Sicredinvest Pós COM TRAVA</label>
-          <input type="text" id="investPctCdiSicredinvestComTrava" inputmode="decimal" value="0">
+          <input type="number" id="investPctCdiSicredinvestComTrava" step="0.01" value="0">
         </div>
         <div class="field" style="margin-top:0;">
           <label>% do CDI — LCA/LCI Pós-Fixado</label>
-          <input type="text" id="investPctCdiLca" inputmode="decimal" value="78">
+          <input type="number" id="investPctCdiLca" step="0.01" value="78">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pré-fixada a.a. — Sicredinvest Pré-Fixado</label>
-          <input type="text" id="investTaxaPreSicredinvest" inputmode="decimal" value="9.04">
+          <input type="number" id="investTaxaPreSicredinvest" step="0.01" value="9.04">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pré-fixada a.a. — LCA Pré-Fixado</label>
-          <input type="text" id="investTaxaPreLca" inputmode="decimal" value="11.38">
+          <input type="number" id="investTaxaPreLca" step="0.01" value="11.38">
         </div>
         <div class="field" style="margin-top:0;">
           <label>TR mensal aproximada da poupança (%)</label>
-          <input type="text" id="investTrPoupanca" inputmode="decimal" value="0.0911">
+          <input type="number" id="investTrPoupanca" step="0.0001" value="0.0911">
           <button type="button" class="btn-ghost" id="btnPuxarTRInvest" style="padding:8px 12px;font-size:13px;">Puxar TR mensal</button>
           <p class="hint" id="investTRStatus"></p>
         </div>
@@ -1205,8 +1207,8 @@
   bindSeg('seg-iofPessoa', v=>{
     const cfg = IOF_POR_PESSOA[v];
     if(!cfg) return;
-    setTaxaEl($('iofFixo'), parseFloat(cfg.fixo), 2);
-    setTaxaEl($('iofDiario'), parseFloat(cfg.diario), 5);
+    $('iofFixo').value = cfg.fixo;
+    $('iofDiario').value = cfg.diario;
     $('iofPessoaLabel').textContent = IOF_PESSOA_LABEL[v] || 'IOF';
   });
 
@@ -1269,53 +1271,6 @@
     format();
   }
   aplicarMascaraMoeda($('valorSimulacao'));
-
-  // ---------- máscara de taxa/percentual (formato 0,50 — vírgula) ----------
-  function parseBR(el){
-    if(!el) return 0;
-    const s = (el.value||'').trim();
-    if(!s) return 0;
-    const n = parseFloat(s.replace(/\./g,'').replace(',','.'));
-    return isFinite(n) ? n : 0;
-  }
-  function setTaxaEl(el, valor, decimais){
-    decimais = decimais==null ? 2 : decimais;
-    el.value = (isFinite(valor)?valor:0).toLocaleString('pt-BR', {minimumFractionDigits:decimais, maximumFractionDigits:decimais});
-  }
-  function aplicarMascaraTaxa(el, decimais){
-    decimais = decimais==null ? 2 : decimais;
-    // normaliza um valor inicial no formato antigo (com ponto) pro formato brasileiro (vírgula)
-    if(el.value){
-      const n = parseFloat(String(el.value).replace(',','.'));
-      if(isFinite(n)) setTaxaEl(el, n, decimais);
-    }
-    const format = ()=>{
-      const digits = el.value.replace(/\D/g,'');
-      if(!digits){ el.value=''; return; }
-      const num = parseInt(digits,10)/Math.pow(10,decimais);
-      el.value = num.toLocaleString('pt-BR', {minimumFractionDigits:decimais, maximumFractionDigits:decimais});
-    };
-    el.addEventListener('input', format);
-    el.addEventListener('blur', format);
-  }
-  aplicarMascaraTaxa($('taxaMensal'), 2);
-  aplicarMascaraTaxa($('taxaPre'), 2);
-  aplicarMascaraTaxa($('taxaPos'), 4);
-  aplicarMascaraTaxa($('renegTaxaMensal'), 2);
-  aplicarMascaraTaxa($('renegTaxaPre'), 2);
-  aplicarMascaraTaxa($('renegTaxaPos'), 4);
-  aplicarMascaraTaxa($('descTaxa'), 2);
-  aplicarMascaraTaxa($('quitTaxaMensal'), 2);
-  aplicarMascaraTaxa($('investSelic'), 2);
-  aplicarMascaraTaxa($('investCdi'), 2);
-  aplicarMascaraTaxa($('investPctCdiSicredinvest'), 2);
-  aplicarMascaraTaxa($('investPctCdiSicredinvestComTrava'), 2);
-  aplicarMascaraTaxa($('investPctCdiLca'), 2);
-  aplicarMascaraTaxa($('investTaxaPreSicredinvest'), 2);
-  aplicarMascaraTaxa($('investTaxaPreLca'), 2);
-  aplicarMascaraTaxa($('investTrPoupanca'), 4);
-  aplicarMascaraTaxa($('iofFixo'), 2);
-  aplicarMascaraTaxa($('iofDiario'), 5);
 
   // ---------- datas ----------
   function addMonths(date, n){
@@ -1480,7 +1435,7 @@
         const { valor: metaSelicAno, data } = await buscarMetaSelicAnual();
         const base = tipo==='CDI' ? (metaSelicAno - 0.10) : metaSelicAno;
         const taxaMensal = base/12;
-        setTaxaEl(alvoEl, taxaMensal, 4);
+        alvoEl.value = taxaMensal.toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
         alvoEl.dispatchEvent(new Event('input', {bubbles:true}));
         const formula = tipo==='CDI'
           ? `(${metaSelicAno.toFixed(2)}% − 0,10%) ÷ 12`
@@ -1501,6 +1456,17 @@
   }
   function faixaPrestamistaPorIdade(idade){
     return FAIXAS_PRESTAMISTA.find(f => idade>=f.min && idade<=f.max) || null;
+  }
+  // Prêmio único é uma taxa FIXA para a faixa etária vigente na liberação, aplicada
+  // sobre o prazo INTEIRO da operação — sem nenhum corte quando o associado muda de
+  // faixa etária no meio do caminho. Havia uma trava aqui (cortando os dias na véspera
+  // do aniversário de 66 anos, só no SAC) baseada num print isolado que parecia bater;
+  // um teste de estresse rodando o simulador.xlsm de verdade (LibreOffice, dezenas de
+  // cenários SAC e PRICE, várias idades cruzando faixas) provou que a planilha real
+  // NUNCA corta — usa sempre os dias cheios até a última parcela, em ambos os sistemas.
+  // O print que motivou a trava deve ter vindo de outra célula/versão. Removida.
+  function diasOperacaoPrestamista(dataLiberacao, dataUltimaParcela){
+    return Math.round((dataUltimaParcela - dataLiberacao)/86400000) + 1;
   }
 
   // ---------- amortization schedule ----------
@@ -1592,8 +1558,8 @@
     // aplicado sobre o valor AMORTIZADO em cada parcela, pelos dias corridos entre a
     // liberação e o vencimento daquela parcela (teto de 365 dias por parcela).
     // Fonte: simulador.xlsm, aba "PRICE - Calculo" (colunas B/D/E).
-    const iofFixoPct = parseBR($('iofFixo'))/100;
-    const iofDiarioPct = parseBR($('iofDiario'))/100;
+    const iofFixoPct = parseFloat($('iofFixo').value)/100;
+    const iofDiarioPct = parseFloat($('iofDiario').value)/100;
     const iofFixo = bruto*iofFixoPct;
     let iofDiario = 0;
     linhasTmp.forEach(l=>{
@@ -1653,7 +1619,7 @@
             ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : bruto;
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
-          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade, sistemaCalc);
+          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData);
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
         } else {
@@ -1725,8 +1691,8 @@
   $('btnCalcular').addEventListener('click', ()=>{
     const valorInformado = parseMoeda($('valorSimulacao'));
     const taxaMensal = sistema==='SAC'
-      ? (parseBR($('taxaPre'))||0) + (parseBR($('taxaPos'))||0)
-      : (parseBR($('taxaMensal'))||0);
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
     let prazo = Math.round(parseFloat((sistema==='SAC' ? $('prazoSac') : $('prazo')).value)||1);
     let carencia = carenciaValor('carencia');
 
@@ -2301,7 +2267,7 @@
 
   function calcularDesconto(){
     const liberacao = parseDataInput($('descLiberacao')) || new Date();
-    const taxaMensal = (parseBR($('descTaxa'))||0)/100;
+    const taxaMensal = (parseFloat($('descTaxa').value)||0)/100;
     const tarifa = parseMoeda($('descTarifa'));
     const pessoa = $('descPessoa').value;
     const taxaIofDiaria = TAXA_IOF_DIARIA_POR_PESSOA[pessoa] ?? TAXA_IOF_DIARIA_POR_PESSOA.PJ;
@@ -2377,7 +2343,7 @@
         {label:'Valor do borderô', value: fmtBRL(r.valorBordero)},
         {label:'Valor líquido final', value: fmtBRL(r.valorLiquidoFinal)},
         {label:'Qtd. títulos', value: String(r.linhas.length)},
-        {label:'Taxa de desconto (a.m.)', value: fmtPct((parseBR($('descTaxa'))||0)/100)},
+        {label:'Taxa de desconto (a.m.)', value: fmtPct((parseFloat($('descTaxa').value)||0)/100)},
       ],
       extras: [
         {label:'Desconto (juros)', value: fmtBRL(r.totalJuros)},
@@ -2522,8 +2488,8 @@
   function calcDeducoesReneg(valorFinanciar, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
     const linhasTmp = gerarTabela(valorFinanciar, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira);
 
-    const iofFixoPct = parseBR($('iofFixo'))/100;
-    const iofDiarioPct = parseBR($('iofDiario'))/100;
+    const iofFixoPct = parseFloat($('iofFixo').value)/100;
+    const iofDiarioPct = parseFloat($('iofDiario').value)/100;
     const iofFixo = valorFinanciar*iofFixoPct;
     let iofDiario = 0;
     linhasTmp.forEach(l=>{
@@ -2554,7 +2520,7 @@
             ? linhasTmp.reduce((s,l)=>s+l.parcela, 0)
             : valorFinanciar;
           const ultimaData = linhasTmp[linhasTmp.length-1].data;
-          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData, nascimento, faixaIdade, sistemaCalc);
+          const diasOperacao = diasOperacaoPrestamista(dataLiberacao, ultimaData);
           prestamista = (taxaIdade/30) * diasOperacao * baseCalculo;
           prestamistaInfo = {idade, taxaIdade, ok:true};
         } else {
@@ -2580,8 +2546,8 @@
     carencia = Math.max(0, Math.min(carencia, prazo-1));
 
     const taxaMensal = sistemaReneg==='SAC'
-      ? (parseBR($('renegTaxaPre'))||0) + (parseBR($('renegTaxaPos'))||0)
-      : (parseBR($('renegTaxaMensal'))||0);
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
 
     const dataLiberacao = parseDataRenegLiberacao();
     const dataPrimeira = parseDataRenegPrimeiraParcela();
@@ -2681,7 +2647,7 @@
   // ============================================================
   let modoSelecaoMultiRenegAtiva = false;
   function atualizarBotaoBaixarUnificado(gridId, btnId){
-    const n = document.querySelectorAll('#'+gridId+' .chk-select-prazo:checked').length;
+    const n = document.querySelectorAll('#'+gridId+' .prazo-card.selecionado').length;
     $(btnId).textContent = n>=2 ? 'Baixar várias (PDF)' : 'Baixar simulação (PDF)';
   }
   $('btnAbrirSeletorMultiReneg').addEventListener('click', ()=>{
@@ -2689,12 +2655,9 @@
     $('btnAbrirSeletorMultiReneg').textContent = modoSelecaoMultiRenegAtiva ? 'Cancelar seleção' : 'Selecionar simulações para imprimir';
     $('hintSelecaoMultiReneg').style.display = modoSelecaoMultiRenegAtiva ? '' : 'none';
     if(!modoSelecaoMultiRenegAtiva){
-      document.querySelectorAll('#gradePrazosReneg .chk-select-prazo').forEach(c=>c.checked=false);
+      document.querySelectorAll('#gradePrazosReneg .prazo-card.selecionado').forEach(c=>c.classList.remove('selecionado'));
     }
-    atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg,parseDataRenegLiberacao,()=>carenciaValor('renegCarencia'),()=>modoSelecaoMultiRenegAtiva);
-  });
-  $('gradePrazosReneg').addEventListener('change', e=>{
-    if(e.target.classList.contains('chk-select-prazo')) atualizarBotaoBaixarUnificado('gradePrazosReneg','btnBaixarUnificadoReneg');
+    atualizarBotaoBaixarUnificado('gradePrazosReneg','btnBaixarUnificadoReneg');
   });
 
   function preencherFolhaParaPrazoReneg(item){
@@ -2737,8 +2700,8 @@
     });
   }
   function selecionadosMultiReneg(){
-    const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazosReneg .chk-select-prazo:checked'))
-      .map(c=>parseInt(c.closest('.prazo-card').dataset.prazo,10))
+    const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazosReneg .prazo-card.selecionado'))
+      .map(c=>parseInt(c.dataset.prazo,10))
       .filter(pz=>pz>=1);
     return prazosMarcados.map(pz=>{
       const resumo = resumoRenegParaPrazo(pz);
@@ -2895,7 +2858,7 @@
 
   function calcularQuitacao(){
     const valorFinanciado = parseMoeda($('quitValorFinanciado'));
-    const taxaMensal = parseBR($('quitTaxaMensal'))||0;
+    const taxaMensal = parseFloat($('quitTaxaMensal').value)||0;
     const dataLiberacao = parseDataQuitCampo('quitDataLiberacao') || new Date();
     const dataPrimeira = parseDataQuitCampo('quitDataPrimeiraParcela');
     let prazo = Math.round(parseFloat($('quitPrazo').value)||1);
@@ -3186,12 +3149,12 @@
       }
       if(cfg.parametrosPadrao){
         const pp = cfg.parametrosPadrao;
-        if(typeof pp.pctCdiLcaPos==='number') setTaxaEl($('investPctCdiLca'), pp.pctCdiLcaPos, 2);
-        if(typeof pp.pctCdiSicredinvestPos==='number') setTaxaEl($('investPctCdiSicredinvest'), pp.pctCdiSicredinvestPos, 2);
-        if(typeof pp.pctCdiSicredinvestPosComTrava==='number') setTaxaEl($('investPctCdiSicredinvestComTrava'), pp.pctCdiSicredinvestPosComTrava, 2);
-        if(typeof pp.taxaPreSicredinvestAA==='number') setTaxaEl($('investTaxaPreSicredinvest'), pp.taxaPreSicredinvestAA, 2);
-        if(typeof pp.taxaPreLcaAA==='number') setTaxaEl($('investTaxaPreLca'), pp.taxaPreLcaAA, 2);
-        if(typeof pp.trPoupancaMensal==='number') setTaxaEl($('investTrPoupanca'), pp.trPoupancaMensal, 4);
+        if(typeof pp.pctCdiLcaPos==='number') $('investPctCdiLca').value = pp.pctCdiLcaPos;
+        if(typeof pp.pctCdiSicredinvestPos==='number') $('investPctCdiSicredinvest').value = pp.pctCdiSicredinvestPos;
+        if(typeof pp.pctCdiSicredinvestPosComTrava==='number') $('investPctCdiSicredinvestComTrava').value = pp.pctCdiSicredinvestPosComTrava;
+        if(typeof pp.taxaPreSicredinvestAA==='number') $('investTaxaPreSicredinvest').value = pp.taxaPreSicredinvestAA;
+        if(typeof pp.taxaPreLcaAA==='number') $('investTaxaPreLca').value = pp.taxaPreLcaAA;
+        if(typeof pp.trPoupancaMensal==='number') $('investTrPoupanca').value = pp.trPoupancaMensal;
         if(typeof pp.diasResgatePadrao==='number'){
           $('investDiasResgate').value = pp.diasResgatePadrao;
           atualizarResgatePorDias();
@@ -3263,14 +3226,14 @@
     try{
       const { valor: metaSelicAno, data } = await buscarMetaSelicAnual();
       const cdiAno = metaSelicAno - 0.10;
-      setTaxaEl($('investSelic'), metaSelicAno, 2);
-      setTaxaEl($('investCdi'), cdiAno, 2);
+      $('investSelic').value = metaSelicAno.toFixed(2);
+      $('investCdi').value = cdiAno.toFixed(2);
       statusEl.textContent = `SELIC vigente em ${data} = ${metaSelicAno.toFixed(2)}% a.a. (fonte: Banco Central). CDI estimado = SELIC − 0,10 p.p. = ${cdiAno.toFixed(2)}% a.a. Pode editar na mão se quiser outro valor.`;
     }catch(e){
       const metaSelicAno = SELIC_FALLBACK_ANUAL;
       const cdiAno = metaSelicAno - 0.10;
-      setTaxaEl($('investSelic'), metaSelicAno, 2);
-      setTaxaEl($('investCdi'), cdiAno, 2);
+      $('investSelic').value = metaSelicAno.toFixed(2);
+      $('investCdi').value = cdiAno.toFixed(2);
       statusEl.style.color = 'var(--rose)';
       statusEl.textContent = `Não consegui buscar a Meta Selic agora (sem internet ou API fora do ar) — usando o valor de referência do config-investimentos.json: SELIC = ${metaSelicAno.toFixed(2)}% a.a. CDI estimado = SELIC − 0,10 p.p. = ${cdiAno.toFixed(2)}% a.a. Pode editar na mão se quiser outro valor.`;
     }finally{
@@ -3298,7 +3261,7 @@
     statusEl.textContent = ''; statusEl.style.color = '';
     try{
       const { valor, data } = await buscarTRMensal();
-      setTaxaEl($('investTrPoupanca'), valor, 4);
+      $('investTrPoupanca').value = valor.toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
       statusEl.textContent = `TR vigente em ${data} = ${valor.toFixed(4)}% a.m. (fonte: Banco Central). Se vier 0, é porque a TR está mesmo zerada atualmente — a Poupança sai da comparação até você colocar um valor maior que 0 aqui. Pode editar na mão se quiser outro valor.`;
     }catch(e){
       statusEl.style.color = 'var(--rose)';
@@ -3314,21 +3277,21 @@
     const dataResgate = parseDataInput($('investDataResgate'));
     if(!valor || !dataAplicacao || !dataResgate || dataResgate<=dataAplicacao) return null;
 
-    const selic = (parseBR($('investSelic'))||0)/100;
-    const cdi = (parseBR($('investCdi'))||0)/100;
+    const selic = (parseFloat($('investSelic').value)||0)/100;
+    const cdi = (parseFloat($('investCdi').value)||0)/100;
     // valores "crus" (sem dividir por 100) — usados também pra decidir se o produto entra
     // na simulação: só entra quando o parâmetro dele for >= 1 (0 ou negativo = produto fora).
-    const rawPctCdiLca = parseBR($('investPctCdiLca'))||0;
-    const rawPctCdiSicredPos = parseBR($('investPctCdiSicredinvest'))||0;
-    const rawTaxaPreSicred = parseBR($('investTaxaPreSicredinvest'))||0;
-    const rawTaxaPreLca = parseBR($('investTaxaPreLca'))||0;
-    const rawPctCdiSicredPosComTrava = parseBR($('investPctCdiSicredinvestComTrava'))||0;
+    const rawPctCdiLca = parseFloat($('investPctCdiLca').value)||0;
+    const rawPctCdiSicredPos = parseFloat($('investPctCdiSicredinvest').value)||0;
+    const rawTaxaPreSicred = parseFloat($('investTaxaPreSicredinvest').value)||0;
+    const rawTaxaPreLca = parseFloat($('investTaxaPreLca').value)||0;
+    const rawPctCdiSicredPosComTrava = parseFloat($('investPctCdiSicredinvestComTrava').value)||0;
     const pctCdiLca = rawPctCdiLca/100;
     const pctCdiSicredPos = rawPctCdiSicredPos/100;
     const taxaPreSicred = rawTaxaPreSicred/100;
     const taxaPreLca = rawTaxaPreLca/100;
     const pctCdiSicredPosComTrava = rawPctCdiSicredPosComTrava/100;
-    const rawTrPoupanca = parseBR($('investTrPoupanca'))||0;
+    const rawTrPoupanca = parseFloat($('investTrPoupanca').value)||0;
     const trPoupanca = rawTrPoupanca/100;
 
     const diasCorr = diasCorridosInv(dataAplicacao, dataResgate);
@@ -3634,13 +3597,11 @@
 
   function montarGradePrazos(gridId, persInputId){
     const grid = $(gridId);
-    const comSelecao = gridId==='gradePrazos' || gridId==='gradePrazosReneg'; // Empréstimo e Renegociação têm o seletor de impressão múltipla
-    const selecionadorHtml = '<label class="pz-select hidden"><input type="checkbox" class="chk-select-prazo"> selecionar</label>';
     let html = '';
     PRAZOS_GRADE.forEach(p=>{
-      html += `<div class="prazo-card" data-prazo="${p}">${comSelecao?selecionadorHtml:''}<div class="pz-title">${p} meses</div><div class="pz-sub"></div><div class="pz-body pz-vazio">—</div></div>`;
+      html += `<div class="prazo-card" data-prazo="${p}"><div class="pz-title">${p} meses</div><div class="pz-sub"></div><div class="pz-body pz-vazio">—</div></div>`;
     });
-    html += `<div class="prazo-card" data-pers="1" data-prazo="">${comSelecao?selecionadorHtml:''}<div class="pz-title">Personalizado</div><div class="pz-sub"></div><input class="pz-input" id="${persInputId}" type="number" inputmode="numeric" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
+    html += `<div class="prazo-card" data-pers="1" data-prazo=""><div class="pz-title">Personalizado</div><div class="pz-sub"></div><input class="pz-input" id="${persInputId}" type="number" min="1" max="180" placeholder="nº parcelas"><div class="pz-body pz-vazio">digite o nº de parcelas</div></div>`;
     grid.innerHTML = html;
   }
   montarGradePrazos('gradePrazos','prazoPersInput');
@@ -3654,8 +3615,8 @@
   function linhasEmprestimoParaPrazo(prazoX){
     const valorInformado = parseMoeda($('valorSimulacao'));
     const taxaMensal = sistema==='SAC'
-      ? (parseBR($('taxaPre'))||0) + (parseBR($('taxaPos'))||0)
-      : (parseBR($('taxaMensal'))||0);
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
     if(valorInformado<=0 || taxaMensal<=0) return null;
     let carencia = carenciaValor('carencia');
     carencia = Math.max(0, Math.min(carencia, prazoX-1));
@@ -3670,8 +3631,8 @@
   function resumoEmprestimoParaPrazo(prazoX){
     const valorInformado = parseMoeda($('valorSimulacao'));
     const taxaMensal = sistema==='SAC'
-      ? (parseBR($('taxaPre'))||0) + (parseBR($('taxaPos'))||0)
-      : (parseBR($('taxaMensal'))||0);
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
     if(valorInformado<=0 || taxaMensal<=0) return null;
     let carencia = carenciaValor('carencia');
     carencia = Math.max(0, Math.min(carencia, prazoX-1));
@@ -3688,8 +3649,8 @@
   function linhasRenegParaPrazo(prazoX){
     const valorFinanciar = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
     const taxaMensal = sistemaReneg==='SAC'
-      ? (parseBR($('renegTaxaPre'))||0) + (parseBR($('renegTaxaPos'))||0)
-      : (parseBR($('renegTaxaMensal'))||0);
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
     if(valorFinanciar<=0 || taxaMensal<=0) return null;
     let carencia = carenciaValor('renegCarencia');
     carencia = Math.max(0, Math.min(carencia, prazoX-1));
@@ -3702,8 +3663,8 @@
     const valorEntrada = parseMoeda($('renegValorEntrada'));
     const valorFinanciar = Math.max(0, valorTotal - valorEntrada);
     const taxaMensal = sistemaReneg==='SAC'
-      ? (parseBR($('renegTaxaPre'))||0) + (parseBR($('renegTaxaPos'))||0)
-      : (parseBR($('renegTaxaMensal'))||0);
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
     if(valorFinanciar<=0 || taxaMensal<=0) return null;
     let carencia = carenciaValor('renegCarencia');
     carencia = Math.max(0, Math.min(carencia, prazoX-1));
@@ -3757,11 +3718,7 @@
       }
       if(pers) card.dataset.prazo = valido ? String(pz) : '';
       card.classList.toggle('active', !!linhas && pz===prazoSel);
-      const selecao = card.querySelector('.pz-select');
-      if(selecao){
-        selecao.classList.toggle('hidden', !((selecaoAtivaFn ? selecaoAtivaFn() : false) && !!linhas));
-        if(!linhas){ const chk = selecao.querySelector('input'); if(chk && chk.checked){ chk.checked = false; } }
-      }
+      if(!linhas) card.classList.remove('selecionado'); // card ficou inválido: sai da seleção múltipla também
     });
     if(gridId==='gradePrazos') atualizarBotaoBaixarUnificado('gradePrazos','btnBaixarUnificado');
     else if(gridId==='gradePrazosReneg') atualizarBotaoBaixarUnificado('gradePrazosReneg','btnBaixarUnificadoReneg');
@@ -3784,8 +3741,8 @@
     atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado,parseDataLiberacao,()=>carenciaValor('carencia'),()=>modoSelecaoMultiAtiva);
     const valor = parseMoeda($('valorSimulacao'));
     const taxa = sistema==='SAC'
-      ? (parseBR($('taxaPre'))||0) + (parseBR($('taxaPos'))||0)
-      : (parseBR($('taxaMensal'))||0);
+      ? (parseFloat($('taxaPre').value)||0) + (parseFloat($('taxaPos').value)||0)
+      : (parseFloat($('taxaMensal').value)||0);
     if(valor>0 && taxa>0){
       suprimirScrollResultados = true;
       try{ $('btnCalcular').click(); } finally { suprimirScrollResultados = false; }
@@ -3795,8 +3752,8 @@
     atualizarGradePrazos('gradePrazosReneg','prazoPersInputReneg',linhasRenegParaPrazo,prazoSelecionadoReneg,parseDataRenegLiberacao,()=>carenciaValor('renegCarencia'),()=>modoSelecaoMultiRenegAtiva);
     const vf = parseMoeda($('renegValorTotal')) - parseMoeda($('renegValorEntrada'));
     const taxa = sistemaReneg==='SAC'
-      ? (parseBR($('renegTaxaPre'))||0) + (parseBR($('renegTaxaPos'))||0)
-      : (parseBR($('renegTaxaMensal'))||0);
+      ? (parseFloat($('renegTaxaPre').value)||0) + (parseFloat($('renegTaxaPos').value)||0)
+      : (parseFloat($('renegTaxaMensal').value)||0);
     if(vf>0 && taxa>0){
       suprimirScrollResultados = true;
       try{ $('btnCalcularReneg').click(); } finally { suprimirScrollResultados = false; }
@@ -3810,19 +3767,27 @@
   // seleção de prazo tocando no quadro
   $('gradePrazos').addEventListener('click', e=>{
     if(e.target.classList.contains('pz-input')) return; // foco no campo, sem trocar seleção
-    if(e.target.closest('.pz-select')) return; // clique no seletor de impressão múltipla, não troca o prazo ativo
     const card = e.target.closest('.prazo-card'); if(!card) return;
     const pz = parseInt(card.dataset.prazo,10);
     if(!(pz>=1)) return;
+    if(modoSelecaoMultiAtiva){
+      card.classList.toggle('selecionado');
+      atualizarBotaoBaixarUnificado('gradePrazos','btnBaixarUnificado');
+      return;
+    }
     aplicarPrazoEmprestimo(pz);
     executarAutoCalcEmprestimo();
   });
   $('gradePrazosReneg').addEventListener('click', e=>{
     if(e.target.classList.contains('pz-input')) return;
-    if(e.target.closest('.pz-select')) return; // clique no seletor de impressão múltipla, não troca o prazo ativo
     const card = e.target.closest('.prazo-card'); if(!card) return;
     const pz = parseInt(card.dataset.prazo,10);
     if(!(pz>=1)) return;
+    if(modoSelecaoMultiRenegAtiva){
+      card.classList.toggle('selecionado');
+      atualizarBotaoBaixarUnificado('gradePrazosReneg','btnBaixarUnificadoReneg');
+      return;
+    }
     aplicarPrazoReneg(pz);
     executarAutoCalcReneg();
   });
@@ -3852,12 +3817,9 @@
     $('btnAbrirSeletorMulti').textContent = modoSelecaoMultiAtiva ? 'Cancelar seleção' : 'Selecionar simulações para imprimir';
     $('hintSelecaoMulti').style.display = modoSelecaoMultiAtiva ? '' : 'none';
     if(!modoSelecaoMultiAtiva){
-      document.querySelectorAll('#gradePrazos .chk-select-prazo').forEach(c=>c.checked=false);
+      document.querySelectorAll('#gradePrazos .prazo-card.selecionado').forEach(c=>c.classList.remove('selecionado'));
     }
-    atualizarGradePrazos('gradePrazos','prazoPersInput',linhasEmprestimoParaPrazo,prazoSelecionado,parseDataLiberacao,()=>carenciaValor('carencia'),()=>modoSelecaoMultiAtiva);
-  });
-  $('gradePrazos').addEventListener('change', e=>{
-    if(e.target.classList.contains('chk-select-prazo')) atualizarBotaoBaixarUnificado('gradePrazos','btnBaixarUnificado');
+    atualizarBotaoBaixarUnificado('gradePrazos','btnBaixarUnificado');
   });
 
   // Preenche a #printSheet pra UM prazo específico, exatamente nos mesmos moldes do
@@ -3900,8 +3862,8 @@
     });
   }
   function selecionadosMulti(){
-    const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazos .chk-select-prazo:checked'))
-      .map(c=>parseInt(c.closest('.prazo-card').dataset.prazo,10))
+    const prazosMarcados = Array.from(document.querySelectorAll('#gradePrazos .prazo-card.selecionado'))
+      .map(c=>parseInt(c.dataset.prazo,10))
       .filter(pz=>pz>=1);
     return prazosMarcados.map(pz=>{
       const resumo = resumoEmprestimoParaPrazo(pz);
@@ -3996,8 +3958,8 @@
     dispararChange('demaisTarifasAtiva');
     $('demaisTarifasValor').value = '';
     segClick('seg-iofPessoa','PJ');
-    setTaxaEl($('iofFixo'), 0.38, 2);
-    setTaxaEl($('iofDiario'), 0.0082, 5);
+    $('iofFixo').value = '0.38';
+    $('iofDiario').value = '0.0082';
     const adv = document.querySelector('#modoEmprestimo details.adv');
     if(adv) adv.removeAttribute('open');
     atualizarResumoCarenciaEmprestimo();
@@ -4044,7 +4006,7 @@
 
   function resetDesconto(){
     $('descLiberacao').value = toISODate(new Date());
-    setTaxaEl($('descTaxa'), 1.49, 2);
+    $('descTaxa').value = '1.49';
     $('descTarifa').value = '40,00';
     $('descPessoa').value = 'PJ';
     segClick('seg-intervalo','LIVRE');
@@ -4076,12 +4038,12 @@
     $('investSelic').value = '';
     $('investCdi').value = '';
     $('investSelicStatus').textContent = '';
-    setTaxaEl($('investPctCdiLca'), 78, 2);
-    setTaxaEl($('investPctCdiSicredinvest'), 93, 2);
-    setTaxaEl($('investPctCdiSicredinvestComTrava'), 0, 2);
-    setTaxaEl($('investTaxaPreSicredinvest'), 9.04, 2);
-    setTaxaEl($('investTaxaPreLca'), 11.38, 2);
-    setTaxaEl($('investTrPoupanca'), 0.0911, 4);
+    $('investPctCdiLca').value = '78';
+    $('investPctCdiSicredinvest').value = '93';
+    $('investPctCdiSicredinvestComTrava').value = '0';
+    $('investTaxaPreSicredinvest').value = '9.04';
+    $('investTaxaPreLca').value = '11.38';
+    $('investTrPoupanca').value = '0.0911';
     $('investTRStatus').textContent = '';
     $('resultsInvestimento').classList.add('hidden');
     lastResultInvestimento = null;
