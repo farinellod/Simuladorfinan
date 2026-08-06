@@ -1502,26 +1502,6 @@
   function faixaPrestamistaPorIdade(idade){
     return FAIXAS_PRESTAMISTA.find(f => idade>=f.min && idade<=f.max) || null;
   }
-  // Prêmio único é uma taxa FIXA para a faixa etária vigente na liberação — mas se o
-  // associado for entrar na faixa "66+" durante o prazo (partindo de até 65 anos), a
-  // planilha oficial (simulador.xlsm, aba SAC — "Prazo da Operação") NÃO recalcula um
-  // prêmio misto: ela corta os dias usados no cálculo na véspera do aniversário de 66
-  // anos, e ignora o resto do prazo. Confirmado em três testes reais, cada um com o
-  // MESMO associado (64 anos, cruza os 66 no meio do prazo) e o MESMO prazo/carência:
-  // - SAC: "Prazo da Operação" = 691 dias = exatamente até completar 66 anos (não os
-  //   ~1797 dias do contrato inteiro) — com 691 dias o prêmio bate exato (R$ 1.699,27).
-  // - PRICE: aqui o Excel NÃO corta nada — usa os ~1797 dias do prazo inteiro, e o
-  //   prêmio bate exato assim (R$ 6.784,46). Com o corte aplicado (691 dias) daria só
-  //   R$ 2.608,83, bem abaixo do que a planilha realmente mostra.
-  // Ou seja: o corte é uma particularidade do SAC, não existe no PRICE. Aplicado só
-  // quando sistemaCalc==='SAC'.
-  function diasOperacaoPrestamista(dataLiberacao, dataUltimaParcela, nascimento, faixaAtual, sistemaCalc){
-    const diasCheios = Math.round((dataUltimaParcela - dataLiberacao)/86400000) + 1;
-    if(!faixaAtual || faixaAtual.max !== 65) return diasCheios;
-    const transicao66 = new Date(nascimento.getFullYear()+66, nascimento.getMonth(), nascimento.getDate());
-    const diasAteTransicao = Math.round((transicao66 - dataLiberacao)/86400000);
-    return Math.min(diasCheios, diasAteTransicao);
-  }
 
   // ---------- amortization schedule ----------
   function gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira){
