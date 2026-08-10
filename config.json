@@ -1,8 +1,5 @@
 {
-  "_leiaMe": "Configurações do simulador de crédito. É um arquivo de texto puro (JSON) — dá pra abrir e editar em qualquer editor de texto, até pelo próprio GitHub/Vercel, sem mexer no index.html. Depois de editar e salvar (e o deploy atualizar no Vercel), é só recarregar a página do simulador — os novos valores entram automaticamente. Todos os percentuais aqui são em % (ex.: 0.38 significa 0,38%), igual aparece na tela. Se este arquivo faltar, tiver erro de digitação, ou não carregar por qualquer motivo, o simulador ignora silenciosamente e usa os valores padrão que já vêm no código — ele nunca quebra por causa deste arquivo.",
-
   "iof": {
-    "_comentario": "IOF fixo + diário por tipo de pessoa (seletor PF/PJ/PJ Simples). O IOF diário é aplicado ao dia sobre o saldo amortizado de cada parcela.",
     "PF":        { "fixo": 0.38, "diario": 0.0082 },
     "PJ":        { "fixo": 0.38, "diario": 0.0082 },
     "PJSIMPLES": { "fixo": 0.38, "diario": 0.00274 },
@@ -10,18 +7,15 @@
   },
 
   "tarifa": {
-    "_comentario": "Tarifa de cadastro/TAC: percentual sobre o valor bruto, limitado ao teto em R$.",
     "percentual": 1,
     "tetoReais": 4000
   },
 
   "demaisTarifas": {
-    "_comentario": "Campo livre 'Demais tarifas', disponível nos modos Empréstimo (PRICE/SAC) e Renegociação. Na tela dá pra digitar qualquer valor na mão; o botão de atalho preenche o valor de alienação definido aqui. Valor em R$ (não é %).",
     "alienacaoReais": 458.08
   },
 
   "comissaoAval": {
-    "_comentario": "Comissão de aval (garantia). FAMPE e FAMPE Mulher usam taxa mensal fixa sobre uma base do valor financiado; FGI usa 'Fator K', uma tabela que varia por faixa de prazo (em meses) — fatorK aqui é o valor bruto usado na fórmula 0,48 × fatorK × valor × prazo (não é %, é o fator já pronto da tabela oficial do FGI).",
     "FAMPE":        { "taxaMensalPct": 0.1, "baseSobreValorPct": 80 },
     "FAMPE_MULHER": { "taxaMensalPct": 0.1, "baseSobreValorPct": 100 },
     "FGI": {
@@ -54,12 +48,17 @@
   },
 
   "seguroPrestamista": {
-    "_comentario": "Taxa mensal do seguro prestamista por faixa etária (em %), aplicada pró-rata pelos dias corridos da operação, sobre o valor total das parcelas. Fora das faixas listadas (idade < mínima da 1ª faixa ou > máxima da última), o seguro fica indisponível.",
     "faixasEtarias": [
       { "idadeMin": 18, "idadeMax": 65, "taxaMensalPct": 0.0522 },
       { "idadeMin": 66, "idadeMax": 70, "taxaMensalPct": 0.10885 },
       { "idadeMin": 71, "idadeMax": 75, "taxaMensalPct": 0.20972 },
       { "idadeMin": 76, "idadeMax": 80, "taxaMensalPct": 0.37769 }
     ]
-  }
+  },
+
+  "indexadores": {
+    "spreadCdiSelicPP": 0.10
+  },
+
+  "prazosGradeMeses": [12, 24, 36, 48, 60, 72, 120]
 }
