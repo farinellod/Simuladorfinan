@@ -436,7 +436,6 @@
       <label>Nome do associado</label>
       <input type="text" id="nomeAssociado" placeholder="Nome completo do cliente">
     </div>
-    <p class="hint">Aparece no topo da impressão/PDF e no início do nome do arquivo, em qualquer aba.</p>
   </section>
 
   <div id="modoEmprestimo">
@@ -456,7 +455,6 @@
       <button data-val="BRUTO" class="active">É valor BRUTO</button>
       <button data-val="LIQUIDO">É valor LÍQUIDO</button>
     </div>
-    <p class="hint" id="tipoValorHint">Valor bruto = valor financiado / valor do contrato.</p>
 
     <div class="field" style="margin-top:14px;" id="row-taxa-price">
       <label>Taxa de juros (% a.m.)</label>
@@ -479,14 +477,12 @@
           <p class="hint" id="taxaPosIndexadorStatus"></p>
         </div>
       </div>
-      <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
-      <input type="hidden" id="prazoSac" value="60">
+        <input type="hidden" id="prazoSac" value="60">
     </div>
     <div class="field">
       <label>Carência (meses até o vencimento da 1ª parcela)</label>
       <input type="number" id="carencia" inputmode="numeric" min="0" placeholder="1" value="">
       <p class="parcelas-resumo" id="carenciaResumo"></p>
-      <p class="hint">Ex.: prazo 60 + carência 6 → 1ª parcela vence exatamente 6 meses após a liberação, e o plano continua com as 60 parcelas (a carência atrasa o início, não consome parcelas). No PRICE, os meses de carência só capitalizam juros (sem cobrança); a partir daí a parcela é nivelada sobre o saldo já capitalizado. No SAC não há capitalização prévia — a amortização já começa na 1ª parcela, só o juros dela é maior (reflete o intervalo todo desde a liberação).</p>
     </div>
     <div class="row2">
       <div class="field" style="margin-top:0;">
@@ -498,7 +494,6 @@
         <input type="date" id="dataPrimeiraParcela">
       </div>
     </div>
-    <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação e da carência (carência 0 → 1 mês depois; carência 6 → 6 meses depois). Você pode ajustá-la manualmente se precisar — as demais parcelas seguem mês a mês a partir dela.</p>
   </section>
 
   <section class="card">
@@ -544,7 +539,6 @@
         <button data-val="FAMPE">FAMPE</button>
         <button data-val="FAMPE_MULHER">FAMPE Mulher</button>
       </div>
-      <p class="hint" id="fundoHint"></p>
     </div>
 
     <div class="toggle-row">
@@ -562,7 +556,6 @@
         <label>Data de nascimento do associado</label>
         <input type="date" id="prestamistaNascimento">
       </div>
-      <p class="hint" id="prestamistaFaixaHint">Informe a data de nascimento — a taxa é definida automaticamente pela faixa etária na data de liberação.</p>
     </div>
 
     <div class="toggle-row">
@@ -581,19 +574,17 @@
         <input type="text" id="demaisTarifasValor" inputmode="decimal" placeholder="0,00" value="">
       </div>
       <button type="button" class="btn-ghost" id="btnAlienacao" style="padding:8px 12px;font-size:13px;">Alienação</button>
-      <p class="hint" id="demaisTarifasHint">Digite o valor na mão ou use o botão para preencher a taxa de alienação. O valor entra nas deduções junto com a tarifa de cadastro.</p>
     </div>
   </section>
 
   <section class="card">
     <p class="card-title">Parcelas por prazo</p>
     <div class="prazo-grid" id="gradePrazos"></div>
-    <p class="hint">Tudo calcula sozinho conforme você preenche — cada quadro mostra as parcelas daquele prazo. Toque num quadro para usá-lo no resumo, na tabela detalhada e no PDF; no "Personalizado", digite o nº de parcelas.</p>
     <div class="btn-row" style="margin-top:10px;">
       <button type="button" class="btn-ghost" id="btnAbrirSeletorMulti">Selecionar simulações para imprimir</button>
       <button type="button" class="btn-ghost" id="btnBaixarUnificado">Baixar simulação (PDF)</button>
     </div>
-    <p class="hint" id="hintSelecaoMulti" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada simulação numa folha própria, nos mesmos moldes de sempre (valor bruto/líquido, taxa, CET, encargos e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma. Vale tanto para PRICE quanto SAC.</p>
+    <p class="hint" id="hintSelecaoMulti" style="display:none;"></p>
   </section>
 
   <button class="btn-primary" id="btnCalcular">Calcular simulação</button>
@@ -633,14 +624,13 @@
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>IOF fixo (%)</label>
-          <input type="text" id="iofFixo" inputmode="decimal" value="0.38">
+          <input type="text" id="iofFixo" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>IOF diário (%)</label>
-          <input type="text" id="iofDiario" inputmode="decimal" value="0.0082">
+          <input type="text" id="iofDiario" inputmode="decimal" placeholder="0,00000">
         </div>
       </div>
-      <p class="hint">O seletor acima preenche o fixo e o diário automaticamente (PF/PJ: 0,38% + 0,0082% a.d. · PJ Simples Nacional: 0,38% + 0,00274% a.d.) — ainda editáveis na mão se precisar. O IOF diário é calculado parcela a parcela, sobre o valor amortizado em cada uma, pelos dias corridos até o vencimento dela (teto de 365 dias por parcela) — igual à metodologia oficial do banco. As alíquotas de IOF/crédito PJ têm passado por disputas legislativas/judiciais desde 2025 — confirme com a área de compliance antes de usar em contrato.</p>
     </div>
   </details>
 
@@ -667,7 +657,6 @@
       <div class="field">
         <label>Valor a financiar (total − entrada)</label>
         <input type="text" id="renegValorFinanciar" value="R$ 0,00" disabled style="opacity:0.85;">
-        <p class="hint">Calculado automaticamente — é esse valor que entra na simulação PRICE/SAC abaixo.</p>
       </div>
 
       <div class="row2" style="margin-top:14px;" id="row-taxa-price-reneg">
@@ -693,7 +682,6 @@
             <p class="hint" id="renegTaxaPosIndexadorStatus"></p>
           </div>
         </div>
-        <p class="hint">Taxa total usada no cálculo SAC = taxa pré + taxa pós (indexador).</p>
         <input type="hidden" id="renegPrazoSac" value="60">
       </div>
       <div class="field">
@@ -711,7 +699,6 @@
           <input type="date" id="renegDataPrimeiraParcela">
         </div>
       </div>
-      <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação e da carência — editável se precisar.</p>
     </section>
 
     <section class="card">
@@ -751,7 +738,6 @@
           <label>Data de nascimento do associado</label>
           <input type="date" id="renegPrestamistaNascimento">
         </div>
-        <p class="hint">A taxa é definida automaticamente pela faixa etária na data de liberação.</p>
       </div>
 
       <div class="toggle-row">
@@ -770,21 +756,18 @@
           <input type="text" id="renegDemaisTarifasValor" inputmode="decimal" placeholder="0,00" value="">
         </div>
         <button type="button" class="btn-ghost" id="btnAlienacaoReneg" style="padding:8px 12px;font-size:13px;">Alienação</button>
-        <p class="hint" id="renegDemaisTarifasHint">Digite o valor na mão ou use o botão para preencher a taxa de alienação.</p>
       </div>
 
-      <p class="hint">Importante: IOF, tarifa e seguro prestamista são calculados e exibidos para referência, mas <strong>não são descontados</strong> do valor a financiar — a simulação (parcelas) e o PDF usam sempre o valor cheio (total − entrada).</p>
     </section>
 
     <section class="card">
       <p class="card-title">Parcelas por prazo</p>
       <div class="prazo-grid" id="gradePrazosReneg"></div>
-      <p class="hint">Tudo calcula sozinho conforme você preenche — toque num quadro para usá-lo no resumo, na tabela e no PDF; no "Personalizado", digite o nº de parcelas.</p>
       <div class="btn-row" style="margin-top:10px;">
         <button type="button" class="btn-ghost" id="btnAbrirSeletorMultiReneg">Selecionar simulações para imprimir</button>
         <button type="button" class="btn-ghost" id="btnBaixarUnificadoReneg">Baixar simulação (PDF)</button>
       </div>
-      <p class="hint" id="hintSelecaoMultiReneg" style="display:none;">Marque, em cima de cada quadro, quais prazos quer incluir. Com 1 marcado (ou nenhum, usa o prazo ativo), o botão baixa 1 simulação; marcando 2 ou mais, ele vira "Baixar várias (PDF)" e junta tudo num arquivo só — cada renegociação numa folha própria, nos mesmos moldes de sempre (valor total, entrada, IOF, taxa, CET e a tabela de parcelas completa), com o prazo em negrito no topo de cada uma.</p>
+      <p class="hint" id="hintSelecaoMultiReneg" style="display:none;"></p>
     </section>
 
     <button class="btn-primary" id="btnCalcularReneg">Calcular renegociação</button>
@@ -845,13 +828,13 @@
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa de desconto (% a.m.)</label>
-          <input type="text" id="descTaxa" inputmode="decimal" value="1.49">
+          <input type="text" id="descTaxa" inputmode="decimal" placeholder="0,00">
         </div>
       </div>
       <div class="row2">
         <div class="field" style="margin-top:0;">
           <label>Tarifa (R$, por borderô)</label>
-          <input type="text" id="descTarifa" inputmode="decimal" placeholder="0,00" value="40,00">
+          <input type="text" id="descTarifa" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Tipo de pessoa (IOF)</label>
@@ -862,7 +845,6 @@
           </select>
         </div>
       </div>
-      <p class="hint">IOF: 0,38% fixo sobre o valor líquido pós-desconto + diário por título (0,0082% a.d. PF/PJ, ou 0,00274% a.d. PJ Simples — teto de 365 dias), igual à metodologia do banco.</p>
     </section>
 
     <section class="card">
@@ -874,7 +856,6 @@
           <button data-val="30">30 dias</button>
           <button data-val="LIVRE" class="active">Livre</button>
         </div>
-        <p class="hint">Com 15 ou 30 selecionado, cada novo título já vem com o vencimento calculado a partir do anterior (dá pra editar depois). "Livre" não preenche nada automaticamente.</p>
       </div>
       <div id="descTitulosLista"></div>
       <button class="btn-ghost" id="btnAddTitulo" style="margin-top:10px;">+ Adicionar título</button>
@@ -912,7 +893,6 @@
 
     <section class="card">
       <p class="card-title">Quitação antecipada — PRICE</p>
-      <p class="hint" style="margin-top:0;">Calcula a tabela PRICE normal e, ao lado, o valor de quitação de cada parcela com o desconto de antecipação com base na data de quitação informada. Usa o mesmo motor de cálculo da aba Empréstimo (PRICE/SAC).</p>
 
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
@@ -935,7 +915,6 @@
           <input type="date" id="quitDataPrimeiraParcela">
         </div>
       </div>
-      <p class="hint">A data da 1ª parcela é preenchida automaticamente a partir da liberação — editável se precisar.</p>
 
       <div class="row2">
         <div class="field" style="margin-top:0;">
@@ -949,16 +928,14 @@
       </div>
       <div class="field">
         <label>Carência (meses até o vencimento da 1ª parcela)</label>
-        <input type="number" id="quitCarencia" inputmode="numeric" min="0" value="0">
+        <input type="number" id="quitCarencia" inputmode="numeric" min="0" placeholder="0">
         <p class="parcelas-resumo" id="quitCarenciaResumo"></p>
         <div class="seg" id="seg-quitTipoCarencia" style="grid-template-columns:1fr 1fr;margin-top:10px;">
           <button type="button" data-val="CAPITALIZA" class="active">Capitaliza (sem cobrança)</button>
           <button type="button" data-val="SOJUROS">Paga só os juros</button>
         </div>
-        <p class="hint"><b>Capitaliza (sem cobrança)</b> — os meses de carência não são cobrados, só capitalizam juros, e a carência apenas atrasa o vencimento da 1ª parcela: prazo 60 + carência 6 → as 60 parcelas continuam, começando 6 meses após a liberação. É o PRICE padrão do banco, e usa exatamente o mesmo motor da aba Empréstimo.<br><b>Paga só os juros</b> — as parcelas de carência <b>são cobradas</b> (juros puro, principal intacto) e por isso contam dentro do prazo: contrato de 54 parcelas com as 5 primeiras só de juros → prazo 54, carência 5. É o formato de vários contratos de capital de giro de outros bancos — se o extrato do contrato mostra pagamento nos primeiros meses com amortização 0,00, é este o modo.</p>
       </div>
 
-      <p class="hint">Parcelas com vencimento até a data de quitação já estão vencidas: mostram apenas o valor cheio da parcela, sem desconto. Parcelas a vencer mostram o valor descontado (valor presente na data de quitação, pela taxa contratada).</p>
     </section>
 
     <button class="btn-primary" id="btnCalcularQuitacao">Calcular quitação antecipada</button>
@@ -1002,7 +979,6 @@
             <div class="k-value" id="quitOutEconomia">—</div>
           </div>
         </div>
-        <p class="hint">Marque/desmarque parcelas na tabela abaixo para incluir ou excluir do total. Por padrão, só as parcelas a vencer entram na conta — as já vencidas ficam de fora.</p>
       </div>
 
       <div class="card">
@@ -1027,7 +1003,6 @@
 
     <section class="card">
       <p class="card-title">Simulação de investimentos</p>
-      <p class="hint" style="margin-top:0;">Compara Poupança, LCA/LCI Pós-Fixado, CDB Pós-Fixado, CDB Pré-Fixado e LCA Pré-Fixado para o mesmo valor e prazo. Mesma metodologia da planilha de rentabilidade: taxa a.a. → a.m. → remuneração do período por dias úteis/252, com IOF e IR regressivos onde a lei exige (poupança e LCA/LCI são sempre isentas de IOF/IR para pessoa física).</p>
 
       <div class="row2" style="margin-top:14px;">
         <div class="field" style="margin-top:0;">
@@ -1049,7 +1024,6 @@
           <input type="date" id="investDataResgate">
         </div>
       </div>
-      <p class="hint">Data de aplicação editável (em vermelho) — o padrão é hoje, mas dá pra simular uma aplicação retroativa ou futura. Mudar a data de aplicação mantém "Dias até o resgate" fixo e desloca a data de resgate junto; ou edite a data de resgate direto, que os dias se recalculam.</p>
     </section>
 
     <section class="card">
@@ -1066,7 +1040,6 @@
       </div>
       <button type="button" class="btn-ghost btn-indexador-invest" id="btnPuxarSelicInvest" style="padding:8px 12px;font-size:13px;">Puxar SELIC</button>
       <p class="hint" id="investSelicStatus"></p>
-      <p class="hint">Dias úteis contam feriados nacionais (fixos e móveis) e fins de semana, igual ao NETWORKDAYS da planilha. Se o "Puxar SELIC" não conseguir buscar no Banco Central, ele usa o valor de referência configurado em config-investimentos.json.</p>
     </section>
 
     <section class="card">
@@ -1074,33 +1047,31 @@
       <div class="row2" id="gradeParametrosProduto">
         <div class="field" style="margin-top:0;">
           <label>% do CDI — CDB Pós SEM TRAVA</label>
-          <input type="text" id="investPctCdiCdb" inputmode="decimal" value="93">
+          <input type="text" id="investPctCdiCdb" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field hidden" id="campoPctCdiComTravaWrap" style="margin-top:0;">
           <label>% do CDI — CDB Pós COM TRAVA</label>
-          <input type="text" id="investPctCdiCdbComTrava" inputmode="decimal" value="0">
+          <input type="text" id="investPctCdiCdbComTrava" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>% do CDI — LCA/LCI Pós-Fixado</label>
-          <input type="text" id="investPctCdiLca" inputmode="decimal" value="78">
+          <input type="text" id="investPctCdiLca" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pré-fixada a.a. — CDB Pré-Fixado</label>
-          <input type="text" id="investTaxaPreCdb" inputmode="decimal" value="9.04">
+          <input type="text" id="investTaxaPreCdb" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>Taxa pré-fixada a.a. — LCA Pré-Fixado</label>
-          <input type="text" id="investTaxaPreLca" inputmode="decimal" value="11.38">
+          <input type="text" id="investTaxaPreLca" inputmode="decimal" placeholder="0,00">
         </div>
         <div class="field" style="margin-top:0;">
           <label>TR mensal aproximada da poupança (%)</label>
-          <input type="text" id="investTrPoupanca" inputmode="decimal" value="0.0911">
+          <input type="text" id="investTrPoupanca" inputmode="decimal" placeholder="0,0000">
           <button type="button" class="btn-ghost" id="btnPuxarTRInvest" style="padding:8px 12px;font-size:13px;">Puxar TR mensal</button>
           <p class="hint" id="investTRStatus"></p>
         </div>
       </div>
-      <p class="hint">Um produto só entra na simulação e fica disponível para seleção quando o parâmetro dele for maior que 0 — nos quatro produtos de cima (% do CDI / taxa pré) precisa ser ≥ 1; na Poupança, qualquer TR maior que 0 já é suficiente (deixe a TR em 0 pra tirar a Poupança da comparação também). O campo "CDB Pós COM TRAVA" só aparece — e, do lado do "Sem trava", só quando ativo — quando "Dias até o resgate" for ≥ 90; caso contrário os campos seguem normalmente, dois por linha.</p>
-      <p class="hint">Regra da poupança: se a SELIC for maior que 8,5% a.a., rende 0,5% a.m. + TR; senão, rende 70% da SELIC + TR. Valores padrão vêm do config-investimentos.json quando disponível.</p>
     </section>
 
     <button class="btn-primary" id="btnCalcularInvestimento">Calcular simulação de investimentos</button>
@@ -1134,8 +1105,6 @@
             <tbody id="tabelaInvestimentoBody"></tbody>
           </table>
         </div>
-        <p class="hint">Distribuição de Resultados é a estimativa de sobras da cooperativa, calculada a partir da participação do valor investido na receita/captação de referência de cada linha de produto (ajustável em config-investimentos.json). Rentabilidade líquida já descontada de IOF e IR, quando aplicável — não inclui a distribuição de resultados. "% CDI bruto": nos produtos pós-fixados (que têm %CDI contratado), é o %CDI contratado + a distribuição de resultados convertida em %CDI equivalente; nos pré-fixados e na poupança (sem %CDI contratado), soma o rendimento bruto com a distribuição, sobre o CDI do período — mesma fórmula da planilha oficial de rentabilidade.</p>
-        <p class="hint">Marque "Imprimir" nas linhas que quiser incluir na impressão/PDF — por padrão, todos os produtos que entraram no cálculo já vêm marcados. A checkbox no cabeçalho da coluna marca/desmarca todos de uma vez; dá pra ajustar manualmente linha por linha depois. Na folha impressa/PDF, os produtos ficam lado a lado (colunas), separados por linhas verticais, e os dados de cada um em linhas.</p>
 
         <div class="btn-row">
           <button class="btn-ghost" id="btnImprimirInvestimento">Imprimir simulação</button>
@@ -1210,11 +1179,8 @@
   });
   bindSeg('seg-tipoValor', v=>{
     tipoValor=v;
-    $('tipoValorHint').textContent = v==='BRUTO'
-      ? 'Valor bruto = valor financiado / valor do contrato.'
-      : 'Valor líquido = valor que o cliente efetivamente recebe na conta. O bruto é calculado a partir daqui.';
   });
-  bindSeg('seg-fundo', v=>{ fundo=v; updateFundoHint(); });
+  bindSeg('seg-fundo', v=>{ fundo=v; });
 
   let IOF_POR_PESSOA = {
     PF:        { fixo: '0.38', diario: '0.0082'  },
@@ -1230,16 +1196,6 @@
     setTaxaEl($('iofDiario'), parseFloat(cfg.diario), 5);
     $('iofPessoaLabel').textContent = IOF_PESSOA_LABEL[v] || 'IOF';
   });
-
-  function updateFundoHint(){
-    const hints = {
-      FAMPE: 'CCA = 0,10% × prazo (meses) × 80% do valor financiado.',
-      FAMPE_MULHER: 'CCA (Mulher) = 0,10% × prazo (meses) × 100% do valor financiado.',
-      FGI: 'ECG = 48% × Fator K (pela tabela vigente ≥2022) × valor financiado × prazo (meses).'
-    };
-    $('fundoHint').textContent = hints[fundo] || hints.FGI;
-  }
-  updateFundoHint();
 
   function toggleSubPanel(checkboxId, panelId){
     $(checkboxId).addEventListener('change', e=>{
@@ -1406,8 +1362,6 @@
             PJ:        { fixo: String(cfg.iof.PJ.fixo),        diario: String(cfg.iof.PJ.diario) },
             PJSIMPLES: { fixo: String(cfg.iof.PJSIMPLES.fixo), diario: String(cfg.iof.PJSIMPLES.diario) },
           };
-          const btnAtivo = document.querySelector('#seg-iofPessoa button.active');
-          if(btnAtivo) segClick('seg-iofPessoa', btnAtivo.dataset.val);
         }
         if(typeof cfg.iof.adicionalDescontoTitulos === 'number'){
           IOF_ADICIONAL_DESCONTO_TITULOS_PCT = cfg.iof.adicionalDescontoTitulos;
@@ -3072,12 +3026,6 @@
       }
       if(cfg.parametrosPadrao){
         const pp = cfg.parametrosPadrao;
-        if(typeof pp.pctCdiLcaPos==='number') setTaxaEl($('investPctCdiLca'), pp.pctCdiLcaPos, 2);
-        if(typeof pp.pctCdiCdbPos==='number') setTaxaEl($('investPctCdiCdb'), pp.pctCdiCdbPos, 2);
-        if(typeof pp.pctCdiCdbPosComTrava==='number') setTaxaEl($('investPctCdiCdbComTrava'), pp.pctCdiCdbPosComTrava, 2);
-        if(typeof pp.taxaPreCdbAA==='number') setTaxaEl($('investTaxaPreCdb'), pp.taxaPreCdbAA, 2);
-        if(typeof pp.taxaPreLcaAA==='number') setTaxaEl($('investTaxaPreLca'), pp.taxaPreLcaAA, 2);
-        if(typeof pp.trPoupancaMensal==='number') setTaxaEl($('investTrPoupanca'), pp.trPoupancaMensal, 4);
         if(typeof pp.diasResgatePadrao==='number'){
           $('investDiasResgate').value = pp.diasResgatePadrao;
           atualizarResgatePorDias();
@@ -3815,8 +3763,8 @@
     dispararChange('demaisTarifasAtiva');
     $('demaisTarifasValor').value = '';
     segClick('seg-iofPessoa','PJ');
-    setTaxaEl($('iofFixo'), 0.38, 2);
-    setTaxaEl($('iofDiario'), 0.0082, 5);
+    $('iofFixo').value = '';
+    $('iofDiario').value = '';
     const adv = document.querySelector('#modoEmprestimo details.adv');
     if(adv) adv.removeAttribute('open');
     atualizarResumoCarenciaEmprestimo();
@@ -3865,8 +3813,8 @@
 
   function resetDesconto(){
     $('descLiberacao').value = toISODate(new Date());
-    setTaxaEl($('descTaxa'), 1.49, 2);
-    $('descTarifa').value = '40,00';
+    $('descTaxa').value = '';
+    $('descTarifa').value = '';
     $('descPessoa').value = 'PJ';
     segClick('seg-intervalo','LIVRE');
     $('descTitulosLista').innerHTML = '';
@@ -3882,7 +3830,7 @@
     quitPrimeiraParcelaEditadaManualmente = false;
     autoPreencherPrimeiraParcelaQuitacao();
     $('quitPrazo').value = '';
-    $('quitCarencia').value = '0';
+    $('quitCarencia').value = '';
     atualizarResumoCarenciaQuitacao();
     $('quitDataQuitacao').value = toISODate(new Date());
     $('resultsQuitacao').classList.add('hidden');
@@ -3897,12 +3845,12 @@
     $('investSelic').value = '';
     $('investCdi').value = '';
     $('investSelicStatus').textContent = '';
-    setTaxaEl($('investPctCdiLca'), 78, 2);
-    setTaxaEl($('investPctCdiCdb'), 93, 2);
-    setTaxaEl($('investPctCdiCdbComTrava'), 0, 2);
-    setTaxaEl($('investTaxaPreCdb'), 9.04, 2);
-    setTaxaEl($('investTaxaPreLca'), 11.38, 2);
-    setTaxaEl($('investTrPoupanca'), 0.0911, 4);
+    $('investPctCdiLca').value = '';
+    $('investPctCdiCdb').value = '';
+    $('investPctCdiCdbComTrava').value = '';
+    $('investTaxaPreCdb').value = '';
+    $('investTaxaPreLca').value = '';
+    $('investTrPoupanca').value = '';
     $('investTRStatus').textContent = '';
     $('resultsInvestimento').classList.add('hidden');
     lastResultInvestimento = null;
