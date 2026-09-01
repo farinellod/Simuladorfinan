@@ -5,9 +5,9 @@
 
   "parametrosPadrao": {
     "pctCdiLcaPos": 78,
-    "pctCdiSicredinvestPos": 93,
-    "pctCdiSicredinvestPosComTrava": 0,
-    "taxaPreSicredinvestAA": 9.04,
+    "pctCdiCdbPos": 93,
+    "pctCdiCdbPosComTrava": 0,
+    "taxaPreCdbAA": 9.04,
     "taxaPreLcaAA": 11.38,
     "trPoupancaMensal": 0.0911,
     "diasResgatePadrao": 30
@@ -37,9 +37,9 @@
   "distribuicaoResultados": {
     "poupanca":                { "receitaCentralizadaBase": 63911489.21, "transferBase": 843462744.89,   "pctOperacao": 3  },
     "lcaPosFixado":             { "receitaCentralizadaBase": 63911489.21, "transferBase": 2297996749.89,  "pctOperacao": 7  },
-    "sicredinvestPosFixado":    { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
-    "sicredinvestPosComTrava":  { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
-    "sicredinvestPreFixado":    { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
+    "cdbPosFixado":    { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
+    "cdbPosComTrava":  { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
+    "cdbPreFixado":    { "receitaCentralizadaBase": 63911489.21, "transferBase": 3834837160.13,  "pctOperacao": 27 },
     "lcaPreFixado":             { "receitaCentralizadaBase": 63911489.21, "transferBase": 2297996749.89,  "pctOperacao": 7  }
   }
 }
