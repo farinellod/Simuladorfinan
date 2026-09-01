@@ -309,6 +309,16 @@
     #printSheet .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
     #printSheet .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
     #printSheet .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
+    #printSheet .p-equacao{display:none;}
+    #printSheet .p-equacao.show{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:8px;}
+    #printSheet .p-eq-box{border:1px solid #ccd3e0;border-radius:5px;padding:4px 7px;text-align:center;background:#fff;}
+    #printSheet .p-eq-box .eqb-label{font-size:6.5px;color:#667;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
+    #printSheet .p-eq-box .eqb-value{font-size:9px;font-weight:800;white-space:nowrap;color:#223;}
+    #printSheet .p-eq-box.vermelho{border-color:#c0392b;background:#fdf1ef;}
+    #printSheet .p-eq-box.vermelho .eqb-value{color:#a5281a;}
+    #printSheet .p-eq-box.verde{border-color:#3fa110;background:#f3faf0;}
+    #printSheet .p-eq-box.verde .eqb-value{color:#2c7a0d;}
+    #printSheet .p-eq-sinal{font-size:12px;font-weight:800;color:#889;}
     #printSheet .p-extras-row{display:none;}
     #printSheet .p-extras-row.show{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
     #printSheet .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
@@ -353,6 +363,16 @@
   #printSheet.print-render .p-title{font-size:16px;font-weight:800;margin:0 0 2px;}
   #printSheet.print-render .p-sub{font-size:10.5px;color:#445;margin:0 0 8px;}
   #printSheet.print-render .p-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;}
+  #printSheet.print-render .p-equacao{display:none;}
+  #printSheet.print-render .p-equacao.show{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:8px;}
+  #printSheet.print-render .p-eq-box{border:1px solid #ccd3e0;border-radius:5px;padding:4px 7px;text-align:center;background:#fff;}
+  #printSheet.print-render .p-eq-box .eqb-label{font-size:6.5px;color:#667;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;}
+  #printSheet.print-render .p-eq-box .eqb-value{font-size:9px;font-weight:800;white-space:nowrap;color:#223;}
+  #printSheet.print-render .p-eq-box.vermelho{border-color:#c0392b;background:#fdf1ef;}
+  #printSheet.print-render .p-eq-box.vermelho .eqb-value{color:#a5281a;}
+  #printSheet.print-render .p-eq-box.verde{border-color:#3fa110;background:#f3faf0;}
+  #printSheet.print-render .p-eq-box.verde .eqb-value{color:#2c7a0d;}
+  #printSheet.print-render .p-eq-sinal{font-size:12px;font-weight:800;color:#889;}
   #printSheet.print-render .p-extras-row{display:none;}
   #printSheet.print-render .p-extras-row.show{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
   #printSheet.print-render .p-kpi{border:1px solid #ccd3e0;border-radius:6px;padding:5px 7px;}
@@ -1138,6 +1158,7 @@
       </ul>
     </div>
     <p class="p-sub" id="pSub"></p>
+    <div class="p-equacao" id="pEquacao"></div>
     <div class="p-kpis" id="pKpis"></div>
     <div class="p-extras-row" id="pExtrasRow"></div>
     <div class="p-ded" id="pDedList"></div>
@@ -1737,8 +1758,8 @@
     preencherFolhaImpressao({
       sistema: r.sistema,
       sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${r.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
-      brutoLabel: 'Valor bruto', brutoVal: fmtBRL(r.bruto),
-      liquidoLabel: 'Valor líquido', liquidoVal: fmtBRL(r.liquido),
+      brutoLabel: 'Valor financiado', brutoVal: fmtBRL(r.bruto),
+      liquidoLabel: 'Valor líquido liberado', liquidoVal: fmtBRL(r.liquido),
       extras: [],
       parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
       taxaNominal: fmtPct(r.taxaMensal/100),
@@ -1756,12 +1777,24 @@
     $('pSistema').textContent = opts.sistema;
     $('pSub').textContent = opts.sub;
 
+    const pEquacao = $('pEquacao');
+    if(!opts.kpis && opts.dedRows){
+      const taxasAtivas = opts.dedRows.filter(row=>row.active!==false);
+      let eqHtml = `<div class="p-eq-box vermelho"><div class="eqb-label">${opts.brutoLabel}</div><div class="eqb-value">${opts.brutoVal}</div></div>`;
+      taxasAtivas.forEach(f=>{
+        eqHtml += `<div class="p-eq-sinal">−</div><div class="p-eq-box"><div class="eqb-label">${f.label}</div><div class="eqb-value">${f.val}</div></div>`;
+      });
+      eqHtml += `<div class="p-eq-sinal">=</div><div class="p-eq-box verde"><div class="eqb-label">${opts.liquidoLabel}</div><div class="eqb-value">${opts.liquidoVal}</div></div>`;
+      pEquacao.innerHTML = eqHtml;
+      pEquacao.classList.add('show');
+    } else {
+      pEquacao.innerHTML = '';
+      pEquacao.classList.remove('show');
+    }
+
     const kpis = opts.kpis || [
-      {label: opts.brutoLabel, value: opts.brutoVal},
-      {label: opts.liquidoLabel, value: opts.liquidoVal},
-      {label: '1ª parcela', value: opts.parcela1},
-      {label: 'Taxa nominal / CET (a.m.)', value: `${opts.taxaNominal} / ${opts.cet}`},
       {label: 'Total pago em parcelas', value: fmtBRL(opts.linhas.reduce((s,l)=>s+l.parcela, 0))},
+      {label: 'Taxa nominal / CET (a.m.)', value: `${opts.taxaNominal} / ${opts.cet}`},
     ];
     $('pKpis').innerHTML = kpis.map(k=>
       `<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`
@@ -1780,9 +1813,12 @@
     }
 
     let dedHtml = '';
-    opts.dedRows.forEach(row=>{
-      dedHtml += `<span><span class="lbl">${row.label}${row.active===false?' (inativo)':''}:</span> ${row.val}</span>`;
-    });
+    if(opts.kpis){
+      opts.dedRows.forEach(row=>{
+        if(row.active===false) return;
+        dedHtml += `<span><span class="lbl">${row.label}:</span> ${row.val}</span>`;
+      });
+    }
     if(opts.dedTotalLabel){
       dedHtml += `<span><span class="lbl">${opts.dedTotalLabel}:</span> ${opts.dedTotalVal}</span>`;
     }
@@ -3645,8 +3681,8 @@
     preencherFolhaImpressao({
       sistema: `${sistema} — ${item.prazo} meses`,
       sub: `Liberação em ${fmtData(r.dataLiberacao)} · Prazo ${item.prazo} meses (carência: ${r.carencia}) · Gerado em ${fmtData(new Date())}`,
-      brutoLabel: 'Valor bruto', brutoVal: fmtBRL(r.bruto),
-      liquidoLabel: 'Valor líquido', liquidoVal: fmtBRL(r.liquido),
+      brutoLabel: 'Valor financiado', brutoVal: fmtBRL(r.bruto),
+      liquidoLabel: 'Valor líquido liberado', liquidoVal: fmtBRL(r.liquido),
       extras: [],
       parcela1: primeiraParcela ? fmtBRL(primeiraParcela.parcela) : '—',
       taxaNominal: fmtPct(r.taxaMensal/100),
