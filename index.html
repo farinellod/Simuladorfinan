@@ -1761,6 +1761,7 @@
       {label: opts.liquidoLabel, value: opts.liquidoVal},
       {label: '1ª parcela', value: opts.parcela1},
       {label: 'Taxa nominal / CET (a.m.)', value: `${opts.taxaNominal} / ${opts.cet}`},
+      {label: 'Total pago em parcelas', value: fmtBRL(opts.linhas.reduce((s,l)=>s+l.parcela, 0))},
     ];
     $('pKpis').innerHTML = kpis.map(k=>
       `<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`
