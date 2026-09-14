@@ -428,6 +428,7 @@
       <button data-val="DESCONTO">Desconto de Títulos</button>
       <button data-val="QUITACAO">Quitação Antecipada PRICE</button>
       <button data-val="INVESTIMENTO">Simulação de Investimentos</button>
+      <button data-val="MAQUINETA">Simulador maquineta</button>
     </div>
   </section>
 
@@ -499,17 +500,28 @@
   <section class="card">
     <p class="card-title">Encargos sobre a operação</p>
 
-    <div class="toggle-row" style="align-items:flex-start;">
-      <div style="flex:1;">
-        <div class="tlabel" id="iofPessoaLabel">IOF (PJ)</div>
-        <div class="tdesc">Sempre calculado — fixo + diário, teto 365 dias.</div>
-        <div class="seg" id="seg-iofPessoa" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
-          <button type="button" data-val="PF">PF</button>
-          <button type="button" data-val="PJ" class="active">PJ</button>
-          <button type="button" data-val="PJSIMPLES">PJ Simples</button>
+    <div class="toggle-row">
+      <div>
+        <div class="tlabel">IOF</div>
+        <div class="tdesc">Imposto sobre Operações Financeiras — fixo + diário, teto 365 dias.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="iofAtiva" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div id="iofPanel">
+      <div class="toggle-row" style="align-items:flex-start;">
+        <div style="flex:1;">
+          <div class="tlabel" id="iofPessoaLabel">IOF (PJ)</div>
+          <div class="seg" id="seg-iofPessoa" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+            <button type="button" data-val="PF">PF</button>
+            <button type="button" data-val="PJ" class="active">PJ</button>
+            <button type="button" data-val="PJSIMPLES">PJ Simples</button>
+          </div>
         </div>
       </div>
-      <span class="badge on">Automático</span>
     </div>
 
     <div class="toggle-row">
@@ -1113,6 +1125,130 @@
       </div>
     </section>
 
+  <div id="modoMaquineta" class="hidden">
+
+    <section class="card">
+      <p class="card-title">Valor da venda</p>
+      <div class="field" style="margin-top:0;">
+        <label>Valor da venda (R$)</label>
+        <input type="text" id="maqValorVenda" inputmode="decimal" placeholder="0,00">
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Configurações</p>
+
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">Antecipação automática</div>
+          <div class="tdesc">Desconta o custo de receber antes do prazo — mostra a taxa final parcela a parcela</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="maqAntecipAtiva" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="maqAntecipPanel">
+        <div class="field" style="margin-top:0;">
+          <label>Taxa de antecipação automática (% a.m.)</label>
+          <input type="text" id="maqTaxaAntecip" inputmode="decimal" placeholder="0,00">
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="tlabel">Calcular até 21x</div>
+            <div class="tdesc">Desligado mostra até 12x; ligado estende o parcelamento até 21x</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="maqAte21">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="tlabel">Repassar juros para o cliente</div>
+            <div class="tdesc">Desligado, a loja absorve o custo da antecipação; ligado, o cliente paga o valor parcelado com o juro embutido</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="maqJurosCliente">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Taxas Master / Visa</p>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Débito (%)</label>
+          <input type="text" id="maqMvDebito" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Crédito à vista (%)</label>
+          <input type="text" id="maqMvAvista" inputmode="decimal" placeholder="0,00">
+        </div>
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div class="field" style="margin-top:0;">
+          <label>2 a 6x (%)</label>
+          <input type="text" id="maqMv2a6" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label id="maqMv7a21Label">7 a 12x (%)</label>
+          <input type="text" id="maqMv7a21" inputmode="decimal" placeholder="0,00">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="card-title">Taxas Elo / Hiper / Cabal e demais bandeiras</p>
+      <div class="row2">
+        <div class="field" style="margin-top:0;">
+          <label>Débito (%)</label>
+          <input type="text" id="maqOutDebito" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>Crédito à vista (%)</label>
+          <input type="text" id="maqOutAvista" inputmode="decimal" placeholder="0,00">
+        </div>
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div class="field" style="margin-top:0;">
+          <label>2 a 6x (%)</label>
+          <input type="text" id="maqOut2a6" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label id="maqOut7a21Label">7 a 12x (%)</label>
+          <input type="text" id="maqOut7a21" inputmode="decimal" placeholder="0,00">
+        </div>
+      </div>
+    </section>
+
+    <div class="card" id="maqResults" style="display:none;">
+      <p class="card-title">Master / Visa</p>
+      <div class="table-scroll">
+        <table class="amort" id="maqTabelaMV">
+          <thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
+          <tbody id="maqTabelaMVBody"></tbody>
+        </table>
+      </div>
+
+      <p class="card-title" style="margin-top:16px;">Elo / Hiper / Cabal e demais</p>
+      <div class="table-scroll">
+        <table class="amort" id="maqTabelaOut">
+          <thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
+          <tbody id="maqTabelaOutBody"></tbody>
+        </table>
+      </div>
+
+      <button type="button" class="btn-ghost" id="btnBaixarMaquineta" style="margin-top:14px;">Baixar simulação (PDF)</button>
+    </div>
+
+  </div>
+
   </div>
   <div id="printSheet">
     <p class="p-associado" id="pAssociado"></p>
@@ -1202,6 +1338,7 @@
       $(panelId).classList.toggle('hidden', !e.target.checked);
     });
   }
+  toggleSubPanel('iofAtiva','iofPanel');
   toggleSubPanel('comissaoAtiva','comissaoPanel');
   toggleSubPanel('prestamistaAtiva','prestamistaPanel');
   toggleSubPanel('demaisTarifasAtiva','demaisTarifasPanel');
@@ -1532,8 +1669,9 @@
   function calcDeducoes(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
     const linhasTmp = gerarTabela(bruto, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira);
 
-    const iofFixoPct = parseBR($('iofFixo'))/100;
-    const iofDiarioPct = parseBR($('iofDiario'))/100;
+    const iofAtiva = $('iofAtiva').checked;
+    const iofFixoPct = iofAtiva ? parseBR($('iofFixo'))/100 : 0;
+    const iofDiarioPct = iofAtiva ? parseBR($('iofDiario'))/100 : 0;
     const iofFixo = bruto*iofFixoPct;
     let iofDiario = 0;
     linhasTmp.forEach(l=>{
@@ -1591,7 +1729,7 @@
 
     const demais = demaisTarifasValor();
     const demaisAtiva = $('demaisTarifasAtiva').checked;
-    return {iof,tarifa,comissao,prestamista,demais, total: iof+tarifa+comissao+prestamista+demais, tarifaAtiva, comissaoAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo};
+    return {iof,tarifa,comissao,prestamista,demais, total: iof+tarifa+comissao+prestamista+demais, iofAtiva, tarifaAtiva, comissaoAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo};
   }
 
   function liquidoDe(bruto, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
@@ -1698,7 +1836,7 @@
       }
     }
     const rows = [
-      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'IOF (PJ)', val: d.iof, active:d.iofAtiva},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:'Comissão '+(fundo==='FAMPE_MULHER'?'FAMPE Mulher':fundo), val: d.comissao, active:d.comissaoAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
@@ -2144,6 +2282,7 @@
     $('modoDesconto').classList.toggle('hidden', v!=='DESCONTO');
     $('modoQuitacao').classList.toggle('hidden', v!=='QUITACAO');
     $('modoInvestimento').classList.toggle('hidden', v!=='INVESTIMENTO');
+    $('modoMaquineta').classList.toggle('hidden', v!=='MAQUINETA');
   });
 
   aplicarMascaraMoeda($('descTarifa'));
@@ -2424,8 +2563,9 @@
   function calcDeducoesReneg(valorFinanciar, prazoTotal, carencia, taxaMensal, sistemaCalc, dataLiberacao, dataPrimeira){
     const linhasTmp = gerarTabela(valorFinanciar, taxaMensal, prazoTotal, carencia, sistemaCalc, dataLiberacao, dataPrimeira);
 
-    const iofFixoPct = parseBR($('iofFixo'))/100;
-    const iofDiarioPct = parseBR($('iofDiario'))/100;
+    const iofAtiva = $('iofAtiva').checked;
+    const iofFixoPct = iofAtiva ? parseBR($('iofFixo'))/100 : 0;
+    const iofDiarioPct = iofAtiva ? parseBR($('iofDiario'))/100 : 0;
     const iofFixo = valorFinanciar*iofFixoPct;
     let iofDiario = 0;
     linhasTmp.forEach(l=>{
@@ -2464,7 +2604,7 @@
 
     const demais = demaisTarifasValorReneg();
     const demaisAtiva = $('renegDemaisTarifasAtiva').checked;
-    return {iof, tarifa, prestamista, demais, total: iof+tarifa+prestamista+demais, tarifaAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo, linhas: linhasTmp};
+    return {iof, tarifa, prestamista, demais, total: iof+tarifa+prestamista+demais, iofAtiva, tarifaAtiva, prestamistaAtiva, demaisAtiva, prestamistaInfo, linhas: linhasTmp};
   }
 
   function calcularReneg(){
@@ -2517,7 +2657,7 @@
       }
     }
     const rows = [
-      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'IOF (PJ)', val: d.iof, active:d.iofAtiva},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
       {label:'Demais tarifas', val: d.demais, active:d.demaisAtiva},
@@ -2605,7 +2745,7 @@
       }
     }
     const rows = [
-      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'IOF (PJ)', val: d.iof, active:d.iofAtiva},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
       {label:'Demais tarifas', val: d.demais, active:d.demaisAtiva},
@@ -3654,7 +3794,7 @@
       }
     }
     const rows = [
-      {label:'IOF (PJ)', val: d.iof, active:true},
+      {label:'IOF (PJ)', val: d.iof, active:d.iofAtiva},
       {label:'Tarifa de cadastro', val: d.tarifa, active:d.tarifaAtiva},
       {label:'Comissão '+(fundo==='FAMPE_MULHER'?'FAMPE Mulher':fundo), val: d.comissao, active:d.comissaoAtiva},
       {label:prestamistaLabel, val: d.prestamista, active:d.prestamistaAtiva},
@@ -3856,12 +3996,200 @@
     lastResultInvestimento = null;
   }
 
+  // ============================================================
+  // SIMULADOR MAQUINETA
+  // ============================================================
+  function maqAjustaFimDeSemana(d){
+    const wd = d.getDay();
+    if(wd===6) return new Date(d.getTime()+2*86400000);
+    if(wd===0) return new Date(d.getTime()+1*86400000);
+    return d;
+  }
+  function maqCalculo(taxaBasePct, taxaAntecipPct, dataVenda, n){
+    const taxaBase = taxaBasePct/100;
+    if(n===0){
+      return {taxaFinal: taxaBase, mtotal: 100*(1-taxaBase)};
+    }
+    const taxaAntecip = taxaAntecipPct/100;
+    const V = 100;
+    const J = V*(1-taxaBase);
+    const parcelaNominal = J/n;
+    let mtotal = 0;
+    for(let k=1; k<=n; k++){
+      const raw = new Date(dataVenda.getTime() + (29+30*(k-1))*86400000);
+      const ajustada = maqAjustaFimDeSemana(raw);
+      const dias = Math.round((ajustada-dataVenda)/86400000);
+      const desconto = (taxaAntecip/30)*dias;
+      mtotal += parcelaNominal*(1-desconto);
+    }
+    return {taxaFinal: 1-(mtotal/V), mtotal};
+  }
+  function maqValorCliente(taxaBasePct, taxaAntecipPct, mtotal, n){
+    if(n===0) return 100*(1-taxaBasePct/100);
+    const taxaBase = taxaBasePct/100;
+    const V = 100, J = V*(1-taxaBase);
+    const antecipFrac = (J-mtotal)/J;
+    const denom = 1-taxaBase-antecipFrac;
+    return denom>0 ? V/denom : NaN;
+  }
+  function maqGerarLinhas(taxas, taxaAntecipPct, dataVenda, ate21, antecipAtiva){
+    const maxN = ate21 ? 21 : 12;
+    function taxaBaseParaN(n){
+      if(n===0) return taxas.debito;
+      if(n===1) return taxas.avista;
+      if(n<=6) return taxas.doisASeis;
+      return taxas.seteMais;
+    }
+    const linhas = [];
+    if(!antecipAtiva){
+      linhas.push({modalidade:'Débito', taxaFinal: taxas.debito/100});
+      linhas.push({modalidade:'Crédito à vista', taxaFinal: taxas.avista/100});
+      linhas.push({modalidade:'2 a 6x', taxaFinal: taxas.doisASeis/100});
+      linhas.push({modalidade:`7 a ${maxN}x`, taxaFinal: taxas.seteMais/100});
+      return linhas;
+    }
+    const rDeb = maqCalculo(taxas.debito, taxaAntecipPct, dataVenda, 0);
+    linhas.push(Object.assign({modalidade:'Débito', n:0, taxaBase: taxas.debito}, rDeb));
+    for(let n=1; n<=maxN; n++){
+      const tb = taxaBaseParaN(n);
+      const r = maqCalculo(tb, taxaAntecipPct, dataVenda, n);
+      const modalidade = n===1 ? 'Crédito à vista' : n+'x';
+      linhas.push(Object.assign({modalidade, n, taxaBase: tb}, r));
+    }
+    return linhas;
+  }
+  function maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva){
+    if(!antecipAtiva){
+      return `<tr><td>${l.modalidade}</td><td>${fmtPct(l.taxaFinal)}</td><td>—</td><td>—</td></tr>`;
+    }
+    const valorLiquido = valorVenda*(l.mtotal/100);
+    let parcelaTxt;
+    if(l.n===0){
+      parcelaTxt = fmtBRL(valorLiquido);
+    } else if(jurosCliente){
+      const I = maqValorCliente(l.taxaBase, taxaAntecipPct, l.mtotal, l.n);
+      parcelaTxt = isFinite(I) ? fmtBRL(valorVenda*(I/100)/l.n) : '—';
+    } else {
+      parcelaTxt = fmtBRL(valorVenda/l.n);
+    }
+    return `<tr><td>${l.modalidade}</td><td>${fmtPct(l.taxaFinal)}</td><td>${fmtBRL(valorLiquido)}</td><td>${parcelaTxt}</td></tr>`;
+  }
+  function maqTaxasGrupo(prefix){
+    return {
+      debito: parseBR($('maq'+prefix+'Debito')),
+      avista: parseBR($('maq'+prefix+'Avista')),
+      doisASeis: parseBR($('maq'+prefix+'2a6')),
+      seteMais: parseBR($('maq'+prefix+'7a21')),
+    };
+  }
+  function atualizarLabelsMaquineta(){
+    const ate21 = $('maqAte21').checked;
+    const txt = `7 a ${ate21?21:12}x (%)`;
+    $('maqMv7a21Label').textContent = txt;
+    $('maqOut7a21Label').textContent = txt;
+  }
+  let lastResultMaquineta = null;
+  function executarCalcMaquineta(){
+    const valorVenda = parseBR($('maqValorVenda'));
+    if(!(valorVenda>0)){
+      $('maqResults').style.display = 'none';
+      lastResultMaquineta = null;
+      return;
+    }
+    const antecipAtiva = $('maqAntecipAtiva').checked;
+    const ate21 = $('maqAte21').checked;
+    const jurosCliente = $('maqJurosCliente').checked;
+    const taxaAntecipPct = parseBR($('maqTaxaAntecip'));
+    const dataVenda = new Date(); dataVenda.setHours(0,0,0,0);
+
+    const taxasMV = maqTaxasGrupo('Mv');
+    const taxasOut = maqTaxasGrupo('Out');
+    const linhasMV = maqGerarLinhas(taxasMV, taxaAntecipPct, dataVenda, ate21, antecipAtiva);
+    const linhasOut = maqGerarLinhas(taxasOut, taxaAntecipPct, dataVenda, ate21, antecipAtiva);
+
+    $('maqTabelaMVBody').innerHTML = linhasMV.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva)).join('');
+    $('maqTabelaOutBody').innerHTML = linhasOut.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva)).join('');
+    $('maqResults').style.display = '';
+
+    lastResultMaquineta = { valorVenda, antecipAtiva, ate21, jurosCliente, taxaAntecipPct, dataVenda, linhasMV, linhasOut, taxasMV, taxasOut };
+  }
+  let autoCalcTimerMaq;
+  function agendarAutoCalcMaquineta(){ clearTimeout(autoCalcTimerMaq); autoCalcTimerMaq = setTimeout(executarCalcMaquineta, 300); }
+
+  aplicarMascaraMoeda($('maqValorVenda'));
+  ['maqTaxaAntecip','maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>aplicarMascaraTaxa($(id), 2));
+  ['maqValorVenda','maqTaxaAntecip','maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>{
+    $(id).addEventListener('input', agendarAutoCalcMaquineta);
+  });
+  toggleSubPanel('maqAntecipAtiva','maqAntecipPanel');
+  $('maqAntecipAtiva').addEventListener('change', executarCalcMaquineta);
+  $('maqAte21').addEventListener('change', ()=>{ atualizarLabelsMaquineta(); executarCalcMaquineta(); });
+  $('maqJurosCliente').addEventListener('change', executarCalcMaquineta);
+  atualizarLabelsMaquineta();
+
+  function maqNomeArquivoPDF(){
+    const r = lastResultMaquineta;
+    return montarNomePDF([
+      nomeAssociadoParaArquivo(),
+      'maquineta',
+      valorParaArquivo(r.valorVenda),
+      r.antecipAtiva ? 'com-antecipacao' : 'sem-antecipacao',
+      r.jurosCliente ? 'juros-cliente' : 'juros-empresa',
+    ]);
+  }
+  function preencherFolhaMaquineta(){
+    const r = lastResultMaquineta;
+    $('pAssociado').textContent = ($('nomeAssociado').value||'').trim();
+    $('pSistema').textContent = 'Simulador Maquineta';
+    $('pSub').textContent = `Valor da venda: ${fmtBRL(r.valorVenda)} · Gerado em ${fmtData(new Date())}`;
+    $('pBeneficios').classList.remove('show');
+    $('pEquacao').innerHTML = ''; $('pEquacao').classList.remove('show');
+    $('pExtrasRow').innerHTML = ''; $('pExtrasRow').classList.remove('show');
+    $('pDedList').innerHTML = '';
+
+    const kpis = [
+      {label:'Antecipação automática', value: r.antecipAtiva ? 'Ativada' : 'Desativada'},
+      {label:'Juros', value: r.jurosCliente ? 'Repassados ao cliente' : 'Absorvidos pela empresa'},
+    ];
+    if(r.antecipAtiva){
+      kpis.push({label:'Parcelamento', value: r.ate21 ? 'Até 21x' : 'Até 12x'});
+      kpis.push({label:'Taxa de antecipação', value: fmtPct(r.taxaAntecipPct/100)+' a.m.'});
+    }
+    $('pKpis').innerHTML = kpis.map(k=>`<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`).join('');
+
+    const tabelaHtml = (titulo, linhas) => {
+      const linhasHtml = linhas.map(l=>maqRenderLinha(l, r.valorVenda, r.taxaAntecipPct, r.jurosCliente, r.antecipAtiva)).join('');
+      return `<p class="card-title" style="margin:10px 0 4px;">${titulo}</p>
+        <table class="amort"><thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead><tbody>${linhasHtml}</tbody></table>`;
+    };
+    $('pCols').innerHTML = tabelaHtml('Master / Visa', r.linhasMV) + tabelaHtml('Elo / Hiper / Cabal e demais', r.linhasOut);
+  }
+  $('btnBaixarMaquineta').addEventListener('click', async ()=>{
+    if(!lastResultMaquineta){ alert('Preencha o valor da venda e as taxas antes de baixar.'); return; }
+    preencherFolhaMaquineta();
+    await new Promise(res=>setTimeout(res, 30));
+    await gerarEBaixarPDF(maqNomeArquivoPDF(), $('btnBaixarMaquineta'));
+  });
+  function resetMaquineta(){
+    $('maqValorVenda').value = '';
+    $('maqTaxaAntecip').value = '';
+    ['maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>{ $(id).value=''; });
+    $('maqAntecipAtiva').checked = true;
+    $('maqAntecipPanel').classList.remove('hidden');
+    $('maqAte21').checked = false;
+    $('maqJurosCliente').checked = false;
+    atualizarLabelsMaquineta();
+    $('maqResults').style.display = 'none';
+    lastResultMaquineta = null;
+  }
+
   const RESET_POR_MODO = {
     EMPRESTIMO: { fn: resetEmprestimo, nome: 'Empréstimo' },
     RENEGOCIACAO: { fn: resetReneg, nome: 'Renegociação' },
     DESCONTO: { fn: resetDesconto, nome: 'Desconto de Títulos' },
     QUITACAO: { fn: resetQuitacao, nome: 'Quitação Antecipada' },
     INVESTIMENTO: { fn: resetInvestimento, nome: 'Simulação de Investimentos' },
+    MAQUINETA: { fn: resetMaquineta, nome: 'Simulador Maquineta' },
   };
 
   $('btnReiniciar').addEventListener('click', ()=>{
