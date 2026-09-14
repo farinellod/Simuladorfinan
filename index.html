@@ -1129,6 +1129,19 @@
   <div id="modoMaquineta" class="hidden">
 
     <section class="card">
+      <div class="toggle-row">
+        <div>
+          <div class="tlabel">Simular com valor</div>
+          <div class="tdesc">Ligado, calcula valor líquido e valor da parcela em R$ pra um valor de venda; desligado, mostra só a modalidade e a taxa final</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="maqSimularValor" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="maqValorVendaCard">
       <p class="card-title">Valor da venda</p>
       <div class="field" style="margin-top:0;">
         <label>Valor da venda (R$)</label>
@@ -1167,7 +1180,7 @@
           </label>
         </div>
 
-        <div class="toggle-row">
+        <div class="toggle-row" id="maqJurosClienteRow">
           <div>
             <div class="tlabel">Repassar juros para o cliente</div>
             <div class="tdesc">Desligado, a loja absorve o custo da antecipação; ligado, o cliente paga o valor parcelado com o juro embutido</div>
@@ -1232,7 +1245,7 @@
       <p class="card-title">Master / Visa</p>
       <div class="table-scroll">
         <table class="amort" id="maqTabelaMV">
-          <thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
+          <thead id="maqTabelaMVHead"><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
           <tbody id="maqTabelaMVBody"></tbody>
         </table>
       </div>
@@ -1240,7 +1253,7 @@
       <p class="card-title" style="margin-top:16px;">Elo / Hiper / Cabal e demais</p>
       <div class="table-scroll">
         <table class="amort" id="maqTabelaOut">
-          <thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
+          <thead id="maqTabelaOutHead"><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead>
           <tbody id="maqTabelaOutBody"></tbody>
         </table>
       </div>
@@ -4057,7 +4070,10 @@
     }
     return linhas;
   }
-  function maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva){
+  function maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva, simularValor){
+    if(!simularValor){
+      return `<tr><td>${l.modalidade}</td><td>${fmtPct(l.taxaFinal)}</td></tr>`;
+    }
     if(!antecipAtiva){
       return `<tr><td>${l.modalidade}</td><td>${fmtPct(l.taxaFinal)}</td><td>—</td><td>—</td></tr>`;
     }
@@ -4072,6 +4088,11 @@
       parcelaTxt = fmtBRL(valorVenda/l.n);
     }
     return `<tr><td>${l.modalidade}</td><td>${fmtPct(l.taxaFinal)}</td><td>${fmtBRL(valorLiquido)}</td><td>${parcelaTxt}</td></tr>`;
+  }
+  function maqCabecalhoTabela(simularValor){
+    return simularValor
+      ? '<tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr>'
+      : '<tr><th>Modalidade</th><th>Taxa final</th></tr>';
   }
   function maqTaxasGrupo(prefix){
     return {
@@ -4089,15 +4110,16 @@
   }
   let lastResultMaquineta = null;
   function executarCalcMaquineta(){
+    const simularValor = $('maqSimularValor').checked;
     const valorVenda = parseBR($('maqValorVenda'));
-    if(!(valorVenda>0)){
+    if(simularValor && !(valorVenda>0)){
       $('maqResults').style.display = 'none';
       lastResultMaquineta = null;
       return;
     }
     const antecipAtiva = $('maqAntecipAtiva').checked;
     const ate21 = $('maqAte21').checked;
-    const jurosCliente = $('maqJurosCliente').checked;
+    const jurosCliente = simularValor && $('maqJurosCliente').checked;
     const taxaAntecipPct = parseBR($('maqTaxaAntecip'));
     const dataVenda = new Date(); dataVenda.setHours(0,0,0,0);
 
@@ -4106,11 +4128,13 @@
     const linhasMV = maqGerarLinhas(taxasMV, taxaAntecipPct, dataVenda, ate21, antecipAtiva);
     const linhasOut = maqGerarLinhas(taxasOut, taxaAntecipPct, dataVenda, ate21, antecipAtiva);
 
-    $('maqTabelaMVBody').innerHTML = linhasMV.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva)).join('');
-    $('maqTabelaOutBody').innerHTML = linhasOut.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva)).join('');
+    $('maqTabelaMVHead').innerHTML = maqCabecalhoTabela(simularValor);
+    $('maqTabelaOutHead').innerHTML = maqCabecalhoTabela(simularValor);
+    $('maqTabelaMVBody').innerHTML = linhasMV.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva, simularValor)).join('');
+    $('maqTabelaOutBody').innerHTML = linhasOut.map(l=>maqRenderLinha(l, valorVenda, taxaAntecipPct, jurosCliente, antecipAtiva, simularValor)).join('');
     $('maqResults').style.display = '';
 
-    lastResultMaquineta = { valorVenda, antecipAtiva, ate21, jurosCliente, taxaAntecipPct, dataVenda, linhasMV, linhasOut, taxasMV, taxasOut };
+    lastResultMaquineta = { valorVenda, antecipAtiva, ate21, jurosCliente, taxaAntecipPct, dataVenda, linhasMV, linhasOut, taxasMV, taxasOut, simularValor };
   }
   let autoCalcTimerMaq;
   function agendarAutoCalcMaquineta(){ clearTimeout(autoCalcTimerMaq); autoCalcTimerMaq = setTimeout(executarCalcMaquineta, 300); }
@@ -4119,6 +4143,12 @@
   ['maqTaxaAntecip','maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>aplicarMascaraTaxa($(id), 2));
   ['maqValorVenda','maqTaxaAntecip','maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>{
     $(id).addEventListener('input', agendarAutoCalcMaquineta);
+  });
+  $('maqSimularValor').addEventListener('change', e=>{
+    const on = e.target.checked;
+    $('maqValorVendaCard').classList.toggle('hidden', !on);
+    $('maqJurosClienteRow').classList.toggle('hidden', !on);
+    executarCalcMaquineta();
   });
   toggleSubPanel('maqAntecipAtiva','maqAntecipPanel');
   $('maqAntecipAtiva').addEventListener('change', executarCalcMaquineta);
@@ -4140,7 +4170,9 @@
     const r = lastResultMaquineta;
     $('pAssociado').textContent = ($('nomeAssociado').value||'').trim();
     $('pSistema').textContent = 'Simulador Maquineta';
-    $('pSub').textContent = `Valor da venda: ${fmtBRL(r.valorVenda)} · Gerado em ${fmtData(new Date())}`;
+    $('pSub').textContent = r.simularValor
+      ? `Valor da venda: ${fmtBRL(r.valorVenda)} · Gerado em ${fmtData(new Date())}`
+      : `Gerado em ${fmtData(new Date())}`;
     $('pBeneficios').classList.remove('show');
     $('pEquacao').innerHTML = ''; $('pEquacao').classList.remove('show');
     $('pExtrasRow').innerHTML = ''; $('pExtrasRow').classList.remove('show');
@@ -4148,8 +4180,10 @@
 
     const kpis = [
       {label:'Antecipação automática', value: r.antecipAtiva ? 'Ativada' : 'Desativada'},
-      {label:'Juros', value: r.jurosCliente ? 'Repassados ao cliente' : 'Absorvidos pela empresa'},
     ];
+    if(r.simularValor){
+      kpis.push({label:'Juros', value: r.jurosCliente ? 'Repassados ao cliente' : 'Absorvidos pela empresa'});
+    }
     if(r.antecipAtiva){
       kpis.push({label:'Parcelamento', value: r.ate21 ? 'Até 21x' : 'Até 12x'});
       kpis.push({label:'Taxa de antecipação', value: fmtPct(r.taxaAntecipPct/100)+' a.m.'});
@@ -4157,9 +4191,9 @@
     $('pKpis').innerHTML = kpis.map(k=>`<div class="p-kpi"><div class="pk-label">${k.label}</div><div class="pk-value">${k.value}</div></div>`).join('');
 
     const tabelaHtml = (titulo, linhas) => {
-      const linhasHtml = linhas.map(l=>maqRenderLinha(l, r.valorVenda, r.taxaAntecipPct, r.jurosCliente, r.antecipAtiva)).join('');
+      const linhasHtml = linhas.map(l=>maqRenderLinha(l, r.valorVenda, r.taxaAntecipPct, r.jurosCliente, r.antecipAtiva, r.simularValor)).join('');
       return `<p class="card-title" style="margin:10px 0 4px;">${titulo}</p>
-        <table class="amort"><thead><tr><th>Modalidade</th><th>Taxa final</th><th>Valor líquido</th><th>Valor da parcela</th></tr></thead><tbody>${linhasHtml}</tbody></table>`;
+        <table class="amort"><thead>${maqCabecalhoTabela(r.simularValor)}</thead><tbody>${linhasHtml}</tbody></table>`;
     };
     $('pCols').innerHTML = tabelaHtml('Master / Visa', r.linhasMV) + tabelaHtml('Elo / Hiper / Cabal e demais', r.linhasOut);
   }
@@ -4173,6 +4207,9 @@
     $('maqValorVenda').value = '';
     $('maqTaxaAntecip').value = '';
     ['maqMvDebito','maqMvAvista','maqMv2a6','maqMv7a21','maqOutDebito','maqOutAvista','maqOut2a6','maqOut7a21'].forEach(id=>{ $(id).value=''; });
+    $('maqSimularValor').checked = true;
+    $('maqValorVendaCard').classList.remove('hidden');
+    $('maqJurosClienteRow').classList.remove('hidden');
     $('maqAntecipAtiva').checked = true;
     $('maqAntecipPanel').classList.remove('hidden');
     $('maqAte21').checked = false;
